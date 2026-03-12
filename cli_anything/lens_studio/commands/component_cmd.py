@@ -9,13 +9,12 @@ from ..core import component as comp_core
 from ..utils.formatter import success, error, render_table, render_detail
 
 
-def _load_scene(ctx):
+def _load_project(ctx):
     path = ctx.obj.get("project_path")
     if not path:
         error("No project specified. Use --project <path>.")
     data = proj_core.load_project(path)
-    root = data.get("scene", {}).get("root", {})
-    return data, root, path
+    return data, path
 
 
 @click.group("component")
@@ -33,9 +32,9 @@ def component_group():
 def component_add(ctx, object_id, comp_type, properties, json_mode):
     """Add a component to a scene object."""
     try:
-        data, root, path = _load_scene(ctx)
+        data, path = _load_project(ctx)
         props = json_lib.loads(properties) if properties else None
-        result = comp_core.add_component(root, object_id, comp_type, props)
+        result = comp_core.add_component(data, object_id, comp_type, props)
         proj_core.save_project(path, data)
         success(
             f"Added {comp_type} to {object_id}",
@@ -57,8 +56,8 @@ def component_add(ctx, object_id, comp_type, properties, json_mode):
 def component_remove(ctx, object_id, comp_type, index, json_mode):
     """Remove a component from a scene object."""
     try:
-        data, root, path = _load_scene(ctx)
-        comp_core.remove_component(root, object_id, comp_type, index)
+        data, path = _load_project(ctx)
+        comp_core.remove_component(data, object_id, comp_type, index)
         proj_core.save_project(path, data)
         success(f"Removed {comp_type} from {object_id}", json_mode=json_mode)
     except Exception as e:
@@ -72,8 +71,8 @@ def component_remove(ctx, object_id, comp_type, index, json_mode):
 def component_list(ctx, object_id, json_mode):
     """List all components on a scene object."""
     try:
-        data, root, path = _load_scene(ctx)
-        components = comp_core.list_components(root, object_id)
+        data, path = _load_project(ctx)
+        components = comp_core.list_components(data, object_id)
 
         if not components:
             success("No components found", json_mode=json_mode, data={"components": []})
@@ -108,9 +107,9 @@ def component_list(ctx, object_id, json_mode):
 def component_configure(ctx, object_id, comp_type, properties, index, json_mode):
     """Configure properties on an existing component."""
     try:
-        data, root, path = _load_scene(ctx)
+        data, path = _load_project(ctx)
         props = json_lib.loads(properties)
-        result = comp_core.configure_component(root, object_id, comp_type, props, index)
+        result = comp_core.configure_component(data, object_id, comp_type, props, index)
         proj_core.save_project(path, data)
         success(
             f"Configured {comp_type} on {object_id}",

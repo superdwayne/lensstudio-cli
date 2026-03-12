@@ -27,41 +27,27 @@ def validate_project(project_data: Dict) -> Dict[str, Any]:
     errors = []
     warnings = []
 
-    proj = project_data.get("project", {})
-    scene = project_data.get("scene", {})
+    scene_objects = project_data.get("sceneObjects", [])
     settings = project_data.get("settings", {})
 
     # Check required fields
-    if not proj.get("name"):
+    if not project_data.get("name"):
         errors.append("Project name is required")
 
-    if not scene.get("root"):
-        errors.append("Scene must have a root object")
+    if not scene_objects:
+        errors.append("Scene must have at least one object")
 
     # Check for camera
-    root = scene.get("root", {})
-    if not _has_component_type(root, "Camera"):
+    if not _has_component_type(scene_objects, "Camera"):
         errors.append("Scene must have at least one Camera component")
 
-    # Check render target
-    rt = settings.get("renderTarget", {})
-    width = rt.get("width", 0)
-    height = rt.get("height", 0)
-    if width < 720 or height < 1280:
-        warnings.append(f"Render target {width}x{height} is below recommended 720x1280")
-
-    # Check assets for missing files
-    for asset in project_data.get("assets", []):
-        if not asset.get("relativePath"):
-            warnings.append(f"Asset '{asset.get('name')}' has no file path")
-
-    # Check scripts for syntax issues (basic check)
-    for script in project_data.get("scripts", []):
-        if not script.get("relativePath"):
-            warnings.append(f"Script '{script.get('name')}' has no file path")
+    # Check resources for missing files
+    for res in project_data.get("resources", []):
+        if not res.get("relativePath"):
+            warnings.append(f"Resource '{res.get('name')}' has no file path")
 
     # Size estimation
-    total_size = sum(a.get("fileSize", 0) for a in project_data.get("assets", []))
+    total_size = sum(r.get("fileSize", 0) for r in project_data.get("resources", []))
     if total_size > 8 * 1024 * 1024:  # 8MB limit for Snapchat
         warnings.append(f"Total asset size ({total_size / 1024 / 1024:.1f}MB) exceeds 8MB limit")
 
@@ -70,38 +56,31 @@ def validate_project(project_data: Dict) -> Dict[str, Any]:
         "errors": errors,
         "warnings": warnings,
         "stats": {
-            "sceneObjects": _count_objects(root),
-            "components": _count_components(root),
-            "assets": len(project_data.get("assets", [])),
-            "scripts": len(project_data.get("scripts", [])),
-            "materials": len(project_data.get("materials", [])),
+            "sceneObjects": _count_objects(project_data),
+            "components": _count_components(project_data),
+            "resources": len(project_data.get("resources", [])),
             "estimatedSize": total_size,
         },
     }
 
 
-def _has_component_type(node: Dict, comp_type: str) -> bool:
-    """Check if any object in the tree has a component of the given type."""
-    for comp in node.get("components", []):
-        if comp.get("type") == comp_type:
-            return True
-    for child in node.get("children", []):
-        if _has_component_type(child, comp_type):
-            return True
+def _has_component_type(scene_objects: list, comp_type: str) -> bool:
+    """Check if any object in the flat list has a component of the given type."""
+    for obj in scene_objects:
+        for comp in obj.get("components", []):
+            if comp.get("type") == comp_type:
+                return True
     return False
 
 
-def _count_objects(node: Dict) -> int:
-    count = 1
-    for child in node.get("children", []):
-        count += _count_objects(child)
-    return count
+def _count_objects(project_data: Dict) -> int:
+    return len(project_data.get("sceneObjects", []))
 
 
-def _count_components(node: Dict) -> int:
-    count = len(node.get("components", []))
-    for child in node.get("children", []):
-        count += _count_components(child)
+def _count_components(project_data: Dict) -> int:
+    count = 0
+    for obj in project_data.get("sceneObjects", []):
+        count += len(obj.get("components", []))
     return count
 
 
@@ -157,12 +136,11 @@ def _build_lens_bundle(
             "version": "1.0.0",
             "target": target,
             "built": _timestamp(),
-            "project": project_data["project"],
-            "scene": project_data["scene"],
-            "settings": project_data["settings"],
-            "assets": project_data.get("assets", []),
-            "scripts": project_data.get("scripts", []),
-            "materials": project_data.get("materials", []),
+            "id": project_data.get("id"),
+            "name": project_data.get("name"),
+            "sceneObjects": project_data.get("sceneObjects", []),
+            "settings": project_data.get("settings", {}),
+            "resources": project_data.get("resources", []),
         }
 
         # Write bundle

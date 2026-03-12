@@ -25,16 +25,14 @@ class TestValidateProject:
 
     def test_missing_name(self, sample_project):
         data, _, _ = sample_project
-        data["project"]["name"] = ""
+        data["name"] = ""
         result = validate_project(data)
         assert result["valid"] is False
         assert any("name" in e.lower() for e in result["errors"])
 
     def test_missing_camera(self, sample_project):
         data, _, _ = sample_project
-        # Remove all cameras
-        root = data["scene"]["root"]
-        root["children"] = []
+        data["sceneObjects"] = []
         result = validate_project(data)
         assert any("Camera" in e for e in result["errors"])
 
@@ -43,8 +41,7 @@ class TestValidateProject:
         result = validate_project(data)
         stats = result["stats"]
         assert "sceneObjects" in stats
-        assert "assets" in stats
-        assert "scripts" in stats
+        assert "resources" in stats
 
 
 class TestBuildLensBundle:
@@ -64,26 +61,22 @@ class TestBuildLensBundle:
 class TestHasComponentType:
     def test_finds_camera(self, sample_project):
         data, _, _ = sample_project
-        root = data["scene"]["root"]
-        assert _has_component_type(root, "Camera") is True
+        assert _has_component_type(data["sceneObjects"], "Camera") is True
 
     def test_missing_type(self, sample_project):
         data, _, _ = sample_project
-        root = data["scene"]["root"]
-        assert _has_component_type(root, "HandTracking") is False
+        assert _has_component_type(data["sceneObjects"], "HandTracking") is False
 
 
 class TestCounting:
     def test_count_objects(self, sample_project):
         data, _, _ = sample_project
-        root = data["scene"]["root"]
-        count = _count_objects(root)
-        assert count >= 2  # root + camera
+        count = _count_objects(data)
+        assert count >= 2  # Camera + Ortho Camera
 
     def test_count_components(self, sample_project):
         data, _, _ = sample_project
-        root = data["scene"]["root"]
-        count = _count_components(root)
+        count = _count_components(data)
         assert count >= 1  # at least the Camera component
 
 

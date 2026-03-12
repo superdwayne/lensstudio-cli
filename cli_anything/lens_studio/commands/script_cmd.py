@@ -154,7 +154,6 @@ def script_attach(ctx, script_id, object_id, json_mode):
     """Attach a script to a scene object."""
     try:
         data, project_dir, path = _load_project(ctx)
-        scene_root = data.get("scene", {}).get("root", {})
 
         # Resolve script by name if needed
         entry = script_core.get_script(data, script_id)
@@ -163,7 +162,7 @@ def script_attach(ctx, script_id, object_id, json_mode):
         if not entry:
             error(f"Script not found: {script_id}", json_mode=json_mode)
 
-        script_core.attach_script(data, scene_root, object_id, entry["id"])
+        script_core.attach_script(data, object_id, entry["id"])
         proj_core.save_project(path, data)
         success(
             f"Attached {entry['name']} → {object_id}",
@@ -182,8 +181,7 @@ def script_detach(ctx, script_id, object_id, json_mode):
     """Detach a script from a scene object."""
     try:
         data, project_dir, path = _load_project(ctx)
-        scene_root = data.get("scene", {}).get("root", {})
-        script_core.detach_script(scene_root, object_id, script_id)
+        script_core.detach_script(data, object_id, script_id)
         proj_core.save_project(path, data)
         success(f"Detached script from {object_id}", json_mode=json_mode)
     except Exception as e:

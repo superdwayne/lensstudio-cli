@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 
 from ..utils.config import COMPONENT_TYPES
 from .scene import find_object
+from .project import _new_uuid
 
 
 # ---------------------------------------------------------------------------
@@ -57,7 +58,7 @@ _COMPONENT_DEFAULTS = {
 # ---------------------------------------------------------------------------
 
 def add_component(
-    scene_root: Dict,
+    project_data: Dict,
     object_id: str,
     component_type: str,
     properties: Optional[Dict] = None,
@@ -69,7 +70,7 @@ def add_component(
             f"Use 'component list-types' to see available types."
         )
 
-    obj = find_object(scene_root, object_id)
+    obj = find_object(project_data, object_id)
     if not obj:
         raise ValueError(f"Scene object not found: {object_id}")
 
@@ -85,25 +86,25 @@ def add_component(
                 f"Object already has a {component_type} component (only one allowed)"
             )
 
-    # Build component with defaults
+    # Build component in real LS format: {type, id, properties}
     defaults = _COMPONENT_DEFAULTS.get(component_type, {}).copy()
     if properties:
         defaults.update(properties)
 
-    component = {"type": component_type, **defaults}
+    component = {"type": component_type, "id": _new_uuid(), "properties": defaults}
     obj.setdefault("components", []).append(component)
 
     return component
 
 
 def remove_component(
-    scene_root: Dict,
+    project_data: Dict,
     object_id: str,
     component_type: str,
     index: int = 0,
 ) -> bool:
     """Remove a component from a scene object by type and optional index."""
-    obj = find_object(scene_root, object_id)
+    obj = find_object(project_data, object_id)
     if not obj:
         raise ValueError(f"Scene object not found: {object_id}")
 
@@ -121,23 +122,23 @@ def remove_component(
     return True
 
 
-def list_components(scene_root: Dict, object_id: str) -> List[Dict[str, Any]]:
+def list_components(project_data: Dict, object_id: str) -> List[Dict[str, Any]]:
     """List all components on a scene object."""
-    obj = find_object(scene_root, object_id)
+    obj = find_object(project_data, object_id)
     if not obj:
         raise ValueError(f"Scene object not found: {object_id}")
     return obj.get("components", [])
 
 
 def configure_component(
-    scene_root: Dict,
+    project_data: Dict,
     object_id: str,
     component_type: str,
     properties: Dict[str, Any],
     index: int = 0,
 ) -> Dict[str, Any]:
     """Configure properties on an existing component."""
-    obj = find_object(scene_root, object_id)
+    obj = find_object(project_data, object_id)
     if not obj:
         raise ValueError(f"Scene object not found: {object_id}")
 
@@ -151,7 +152,7 @@ def configure_component(
         raise ValueError(f"Component index {index} out of range (found {len(matches)})")
 
     component = matches[index][1]
-    component.update(properties)
+    component.setdefault("properties", {}).update(properties)
     return component
 
 

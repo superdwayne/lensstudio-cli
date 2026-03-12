@@ -171,7 +171,6 @@ def material_assign(ctx, mat_id, object_id, json_mode):
     """Assign a material to a scene object."""
     try:
         data, path = _load_project(ctx)
-        scene_root = data.get("scene", {}).get("root", {})
 
         # Resolve by name
         mat = mat_core.get_material(data, mat_id)
@@ -180,7 +179,7 @@ def material_assign(ctx, mat_id, object_id, json_mode):
         if not mat:
             error(f"Material not found: {mat_id}", json_mode=json_mode)
 
-        result = mat_core.assign_material(data, scene_root, object_id, mat["id"])
+        result = mat_core.assign_material(data, object_id, mat["id"])
         proj_core.save_project(path, data)
         success(
             f"Assigned {mat['name']} → {object_id}",

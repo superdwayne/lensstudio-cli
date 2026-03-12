@@ -20,25 +20,26 @@ from cli_anything.lens_studio.core.project import (
 class TestBlankProject:
     def test_structure(self):
         data = blank_project("Test")
-        assert data["project"]["name"] == "Test"
-        assert data["meta"]["format"] == "lsproj"
-        assert "scene" in data
-        assert "assets" in data
-        assert "scripts" in data
-        assert "materials" in data
+        assert data["name"] == "Test"
+        assert data["version"] == "5.0"
+        assert "sceneObjects" in data
+        assert "resources" in data
+        assert "settings" in data
+
+    def test_has_cameras(self):
+        data = blank_project("Test")
+        names = [o["name"] for o in data["sceneObjects"]]
+        assert "Camera" in names
+        assert "Orthographic Camera" in names
 
     def test_template_applied(self):
         data = blank_project("FaceTest", template="face-effects")
-        root = data["scene"]["root"]
-        children = root["children"]
-        names = [c["name"] for c in children]
+        names = [o["name"] for o in data["sceneObjects"]]
         assert "Face Effects" in names
 
     def test_world_ar_template(self):
         data = blank_project("WorldTest", template="world-ar")
-        root = data["scene"]["root"]
-        children = root["children"]
-        names = [c["name"] for c in children]
+        names = [o["name"] for o in data["sceneObjects"]]
         assert "Device Tracking" in names
 
 
@@ -50,11 +51,10 @@ class TestCreateProject:
         assert result["name"] == "MyLens"
         assert result["template"] == "blank"
 
-    def test_creates_subdirectories(self, tmp_dir):
+    def test_creates_public_directory(self, tmp_dir):
         result = create_project("MyLens", directory=tmp_dir)
         project_dir = Path(result["directory"])
-        for sub in ["Scripts", "Textures", "Materials", "Meshes", "Audio", "Prefabs"]:
-            assert (project_dir / sub).is_dir()
+        assert (project_dir / "Public").is_dir()
 
     def test_duplicate_project_raises(self, tmp_dir):
         create_project("Dupe", directory=tmp_dir)
@@ -69,13 +69,13 @@ class TestCreateProject:
 class TestLoadSaveProject:
     def test_round_trip(self, sample_project):
         data, path, _ = sample_project
-        assert data["project"]["name"] == "TestProject"
+        assert data["name"] == "TestProject"
 
-        data["project"]["description"] = "Updated"
+        data["name"] = "Updated"
         save_project(path, data)
 
         reloaded = load_project(path)
-        assert reloaded["project"]["description"] == "Updated"
+        assert reloaded["name"] == "Updated"
 
     def test_load_missing_file(self):
         with pytest.raises(FileNotFoundError):
@@ -93,8 +93,7 @@ class TestProjectInfo:
         _, path, _ = sample_project
         info = project_info(path)
         assert info["name"] == "TestProject"
-        assert info["template"] == "blank"
-        assert info["sceneObjects"] >= 1
+        assert info["sceneObjects"] >= 2  # Camera + Ortho Camera
         assert "id" in info
 
 

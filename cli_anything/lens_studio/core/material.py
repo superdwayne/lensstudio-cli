@@ -217,7 +217,6 @@ def remove_material(project_data: Dict, mat_id: str) -> bool:
 
 def assign_material(
     project_data: Dict,
-    scene_root: Dict,
     object_id: str,
     mat_id: str,
 ) -> Dict:
@@ -226,15 +225,15 @@ def assign_material(
     if not material:
         raise ValueError(f"Material not found: {mat_id}")
 
-    obj = find_object(scene_root, object_id)
+    obj = find_object(project_data, object_id)
     if not obj:
         raise ValueError(f"Scene object not found: {object_id}")
 
     # Find a visual component to assign to
     for comp in obj.get("components", []):
         if comp.get("type") in ("MeshVisual", "Image", "PostEffectVisual", "Text"):
-            comp["materialId"] = mat_id
-            comp["materialName"] = material["name"]
+            comp.setdefault("properties", {})["materialId"] = mat_id
+            comp["properties"]["materialName"] = material["name"]
             return comp
 
     raise ValueError(

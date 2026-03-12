@@ -1,15 +1,14 @@
 """Project management for Lens Studio CLI.
 
 Handles creation, loading, inspection, and manipulation of .lsproj project files.
-Lens Studio projects are JSON-based with a scene graph, asset references, and metadata.
+Matches the real Lens Studio file format so projects open natively in the app.
 """
 
 import json
 import os
 import shutil
-import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -25,167 +24,119 @@ def _new_uuid() -> str:
     return str(uuid.uuid4())
 
 
-def _timestamp() -> str:
-    return datetime.utcnow().isoformat() + "Z"
+def _vec3(x=0, y=0, z=0) -> Dict[str, float]:
+    """Create a Lens Studio {x, y, z} vector."""
+    return {"x": x, "y": y, "z": z}
+
+
+def _default_transform() -> Dict[str, Dict]:
+    return {
+        "position": _vec3(),
+        "rotation": _vec3(),
+        "scale": _vec3(1, 1, 1),
+    }
+
+
+def _make_component(comp_type: str, properties: Optional[Dict] = None) -> Dict:
+    """Create a component entry matching real LS format."""
+    return {
+        "type": comp_type,
+        "id": _new_uuid(),
+        "properties": properties or {},
+    }
+
+
+def _make_scene_object(
+    name: str,
+    components: Optional[List[Dict]] = None,
+    parent_id: Optional[str] = None,
+    transform: Optional[Dict] = None,
+) -> Dict:
+    """Create a SceneObject matching real LS format."""
+    return {
+        "id": _new_uuid(),
+        "name": name,
+        "enabled": True,
+        "parentId": parent_id,
+        "transform": transform or _default_transform(),
+        "components": components or [],
+    }
 
 
 # ---------------------------------------------------------------------------
-# Project file schema helpers
+# Project file schema — matches real Lens Studio .lsproj format
 # ---------------------------------------------------------------------------
 
 def blank_project(name: str, template: str = "blank") -> Dict[str, Any]:
-    """Generate a blank Lens Studio project structure."""
-    project_id = _new_uuid()
-    now = _timestamp()
-
-    scene = _template_scene(template)
+    """Generate a Lens Studio project in the real .lsproj format."""
+    scene_objects = _template_scene_objects(template)
 
     return {
-        "meta": {
-            "version": "5.4.0",
-            "format": "lsproj",
-            "generator": "cli-anything-lens-studio",
-        },
-        "project": {
-            "id": project_id,
-            "name": name,
-            "description": "",
-            "template": template,
-            "created": now,
-            "modified": now,
-            "lensStudioVersion": "5.4.0",
-        },
-        "settings": {
-            "targetPlatform": "snapchat",
-            "renderTarget": {
-                "width": 1080,
-                "height": 1920,
-            },
-            "physics": {"enabled": False},
-            "touchInput": {"enabled": True},
-        },
-        "scene": scene,
-        "assets": [],
-        "scripts": [],
-        "materials": [],
+        "id": _new_uuid(),
+        "name": name,
+        "version": "5.0",
+        "sceneObjects": scene_objects,
         "resources": [],
+        "settings": {
+            "targetDevice": "mobile",
+            "orientation": "portrait",
+        },
     }
 
 
-def _template_scene(template: str) -> Dict[str, Any]:
-    """Build the initial scene graph based on template."""
-    root_id = _new_uuid()
-    camera_id = _new_uuid()
+def _template_scene_objects(template: str) -> List[Dict]:
+    """Build the initial sceneObjects list based on template."""
+    objects = []
 
-    base_scene = {
-        "root": {
-            "id": root_id,
-            "name": "Scene",
-            "type": "SceneObject",
-            "enabled": True,
-            "children": [
-                {
-                    "id": camera_id,
-                    "name": "Camera",
-                    "type": "SceneObject",
-                    "enabled": True,
-                    "components": [
-                        {"type": "Camera", "renderOrder": 0},
-                    ],
-                    "transform": {
-                        "position": [0, 0, 0],
-                        "rotation": [0, 0, 0],
-                        "scale": [1, 1, 1],
-                    },
-                    "children": [],
-                }
-            ],
-        }
-    }
+    # Every project gets a perspective camera
+    objects.append(_make_scene_object("Camera", [
+        _make_component("Camera", {
+            "cameraType": "Perspective",
+            "fov": 60,
+            "near": 1,
+            "far": 1000,
+            "renderOrder": 0,
+            "deviceCameraTexture": True,
+        }),
+    ]))
+
+    # Orthographic camera for 2D overlays
+    objects.append(_make_scene_object("Orthographic Camera", [
+        _make_component("Camera", {
+            "cameraType": "Orthographic",
+            "renderOrder": 1,
+        }),
+    ]))
 
     if template == "face-effects":
-        face_id = _new_uuid()
-        base_scene["root"]["children"].append({
-            "id": face_id,
-            "name": "Face Effects",
-            "type": "SceneObject",
-            "enabled": True,
-            "components": [
-                {"type": "Head", "attachmentPoint": "center"},
-                {"type": "FaceMask", "texture": None},
-            ],
-            "transform": {"position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1]},
-            "children": [],
-        })
+        objects.append(_make_scene_object("Face Effects", [
+            _make_component("Head", {"attachmentPoint": "center"}),
+            _make_component("FaceMask", {"texture": None}),
+        ]))
     elif template == "world-ar":
-        tracker_id = _new_uuid()
-        base_scene["root"]["children"].append({
-            "id": tracker_id,
-            "name": "Device Tracking",
-            "type": "SceneObject",
-            "enabled": True,
-            "components": [
-                {"type": "DeviceTracking", "trackingMode": "world"},
-            ],
-            "transform": {"position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1]},
-            "children": [],
-        })
+        objects.append(_make_scene_object("Device Tracking", [
+            _make_component("DeviceTracking", {"trackingMode": "world"}),
+        ]))
     elif template == "hand-tracking":
-        hand_id = _new_uuid()
-        base_scene["root"]["children"].append({
-            "id": hand_id,
-            "name": "Hand Tracking",
-            "type": "SceneObject",
-            "enabled": True,
-            "components": [
-                {"type": "HandTracking", "hand": "right"},
-                {"type": "MeshVisual", "mesh": "handMesh"},
-            ],
-            "transform": {"position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1]},
-            "children": [],
-        })
+        objects.append(_make_scene_object("Hand Tracking", [
+            _make_component("HandTracking", {"hand": "right"}),
+            _make_component("MeshVisual", {"mesh": "handMesh"}),
+        ]))
     elif template == "body-tracking":
-        body_id = _new_uuid()
-        base_scene["root"]["children"].append({
-            "id": body_id,
-            "name": "Body Tracking",
-            "type": "SceneObject",
-            "enabled": True,
-            "components": [
-                {"type": "BodyTracking"},
-            ],
-            "transform": {"position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1]},
-            "children": [],
-        })
+        objects.append(_make_scene_object("Body Tracking", [
+            _make_component("BodyTracking", {}),
+        ]))
     elif template == "marker-tracking":
-        marker_id = _new_uuid()
-        base_scene["root"]["children"].append({
-            "id": marker_id,
-            "name": "Marker Tracker",
-            "type": "SceneObject",
-            "enabled": True,
-            "components": [
-                {"type": "MarkerTracking", "markerAsset": None},
-            ],
-            "transform": {"position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1]},
-            "children": [],
-        })
+        objects.append(_make_scene_object("Marker Tracker", [
+            _make_component("MarkerTracking", {"markerAsset": None}),
+        ]))
     elif template == "segmentation":
-        seg_id = _new_uuid()
-        base_scene["root"]["children"].append({
-            "id": seg_id,
-            "name": "Segmentation",
-            "type": "SceneObject",
-            "enabled": True,
-            "components": [
-                {"type": "SegmentationTextureProvider", "segmentationType": "background"},
-                {"type": "Image", "texture": None},
-            ],
-            "transform": {"position": [0, 0, 0], "rotation": [0, 0, 0], "scale": [1, 1, 1]},
-            "children": [],
-        })
+        objects.append(_make_scene_object("Segmentation", [
+            _make_component("SegmentationTextureProvider", {"segmentationType": "background"}),
+            _make_component("Image", {"texture": None}),
+        ]))
 
-    return base_scene
+    return objects
 
 
 # ---------------------------------------------------------------------------
@@ -210,9 +161,8 @@ def create_project(
 
     data = blank_project(name, template)
 
-    # Create standard subdirectories
-    for sub in ["Scripts", "Textures", "Materials", "Meshes", "Audio", "Prefabs"]:
-        ensure_dir(project_dir / sub)
+    # Real LS projects use a Public/ subdirectory for assets
+    ensure_dir(project_dir / "Public")
 
     # Write project file
     with open(project_file, "w") as f:
@@ -223,7 +173,7 @@ def create_project(
         "path": str(project_file),
         "directory": str(project_dir),
         "template": template,
-        "id": data["project"]["id"],
+        "id": data["id"],
     }
 
 
@@ -241,7 +191,6 @@ def load_project(path: str) -> Dict[str, Any]:
 
 def save_project(path: str, data: Dict[str, Any]):
     """Save project data to a .lsproj file."""
-    data["project"]["modified"] = _timestamp()
     with open(path, "w") as f:
         json.dump(data, f, indent=2)
 
@@ -249,30 +198,18 @@ def save_project(path: str, data: Dict[str, Any]):
 def project_info(path: str) -> Dict[str, Any]:
     """Get summary info about a project."""
     data = load_project(path)
-    proj = data["project"]
-    scene_root = data.get("scene", {}).get("root", {})
-
-    def count_objects(node):
-        c = 1
-        for child in node.get("children", []):
-            c += count_objects(child)
-        return c
-
-    obj_count = count_objects(scene_root) if scene_root else 0
+    scene_objects = data.get("sceneObjects", [])
+    resources = data.get("resources", [])
+    settings = data.get("settings", {})
 
     return {
-        "name": proj["name"],
-        "id": proj["id"],
-        "template": proj.get("template", "unknown"),
-        "created": proj["created"],
-        "modified": proj["modified"],
-        "lensStudioVersion": proj.get("lensStudioVersion", "unknown"),
-        "sceneObjects": obj_count,
-        "assets": len(data.get("assets", [])),
-        "scripts": len(data.get("scripts", [])),
-        "materials": len(data.get("materials", [])),
-        "targetPlatform": data.get("settings", {}).get("targetPlatform", "snapchat"),
-        "resolution": data.get("settings", {}).get("renderTarget", {}),
+        "name": data.get("name", "unknown"),
+        "id": data.get("id", "unknown"),
+        "version": data.get("version", "unknown"),
+        "sceneObjects": len(scene_objects),
+        "resources": len(resources),
+        "targetDevice": settings.get("targetDevice", "mobile"),
+        "orientation": settings.get("orientation", "portrait"),
     }
 
 

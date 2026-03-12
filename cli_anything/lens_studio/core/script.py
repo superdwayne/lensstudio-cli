@@ -221,14 +221,13 @@ def remove_script(
     ]
 
     # Remove ScriptComponent references from scene
-    _remove_script_refs(project_data.get("scene", {}).get("root", {}), script_id)
+    _remove_script_refs(project_data, script_id)
 
     return True
 
 
 def attach_script(
     project_data: Dict,
-    scene_root: Dict,
     object_id: str,
     script_id: str,
 ) -> Dict:
@@ -237,23 +236,27 @@ def attach_script(
     if not script:
         raise ValueError(f"Script not found: {script_id}")
 
-    obj = find_object(scene_root, object_id)
+    obj = find_object(project_data, object_id)
     if not obj:
         raise ValueError(f"Scene object not found: {object_id}")
 
+    from .project import _new_uuid
     component = {
         "type": "ScriptComponent",
-        "scriptId": script_id,
-        "scriptName": script["name"],
-        "inputs": {},
+        "id": _new_uuid(),
+        "properties": {
+            "scriptId": script_id,
+            "scriptName": script["name"],
+            "inputs": {},
+        },
     }
     obj.setdefault("components", []).append(component)
     return component
 
 
-def detach_script(scene_root: Dict, object_id: str, script_id: str) -> bool:
+def detach_script(project_data: Dict, object_id: str, script_id: str) -> bool:
     """Detach a script from a scene object."""
-    obj = find_object(scene_root, object_id)
+    obj = find_object(project_data, object_id)
     if not obj:
         raise ValueError(f"Scene object not found: {object_id}")
 
@@ -261,7 +264,7 @@ def detach_script(scene_root: Dict, object_id: str, script_id: str) -> bool:
     original_len = len(components)
     obj["components"] = [
         c for c in components
-        if not (c.get("type") == "ScriptComponent" and c.get("scriptId") == script_id)
+        if not (c.get("type") == "ScriptComponent" and c.get("properties", {}).get("scriptId") == script_id)
     ]
     return len(obj["components"]) < original_len
 
@@ -286,12 +289,11 @@ def write_script_content(project_dir: str, script_entry: Dict, content: str):
     file_path.write_text(content)
 
 
-def _remove_script_refs(node: Dict, script_id: str):
-    """Recursively remove ScriptComponent references to a script."""
-    components = node.get("components", [])
-    node["components"] = [
-        c for c in components
-        if not (c.get("type") == "ScriptComponent" and c.get("scriptId") == script_id)
-    ]
-    for child in node.get("children", []):
-        _remove_script_refs(child, script_id)
+def _remove_script_refs(project_data: Dict, script_id: str):
+    """Remove ScriptComponent references to a script from all scene objects."""
+    for obj in project_data.get("sceneObjects", []):
+        components = obj.get("components", [])
+        obj["components"] = [
+            c for c in components
+            if not (c.get("type") == "ScriptComponent" and c.get("properties", {}).get("scriptId") == script_id)
+        ]

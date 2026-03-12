@@ -70,8 +70,7 @@ class TestProjectCommands:
         ], obj={})
         assert result.exit_code == 0
         data = json.loads(result.output)
-        # render_detail outputs display field keys
-        assert "ID" in data or "name" in data or "Name" in data
+        assert "ID" in data or "Version" in data
 
     def test_project_list(self, project_with_runner):
         runner, _, tmp_dir = project_with_runner

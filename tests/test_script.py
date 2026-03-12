@@ -17,7 +17,7 @@ from cli_anything.lens_studio.core.script import (
     remove_script,
     write_script_content,
 )
-from cli_anything.lens_studio.core.scene import add_object, find_object_by_name
+from cli_anything.lens_studio.core.scene import add_object
 
 
 class TestCreateScript:
@@ -93,24 +93,22 @@ class TestRemoveScript:
 class TestAttachDetach:
     def test_attach_script(self, sample_project):
         data, path, project_dir = sample_project
-        scene_root = data["scene"]["root"]
 
         script = create_script(data, project_dir, "Attached")
-        obj = add_object(scene_root, "ScriptHolder")
+        obj = add_object(data, "ScriptHolder")
 
-        comp = attach_script(data, scene_root, obj["id"], script["id"])
+        comp = attach_script(data, obj["id"], script["id"])
         assert comp["type"] == "ScriptComponent"
-        assert comp["scriptId"] == script["id"]
+        assert comp["properties"]["scriptId"] == script["id"]
 
     def test_detach_script(self, sample_project):
         data, path, project_dir = sample_project
-        scene_root = data["scene"]["root"]
 
         script = create_script(data, project_dir, "Detachable")
-        obj = add_object(scene_root, "Holder")
-        attach_script(data, scene_root, obj["id"], script["id"])
+        obj = add_object(data, "Holder")
+        attach_script(data, obj["id"], script["id"])
 
-        result = detach_script(scene_root, obj["id"], script["id"])
+        result = detach_script(data, obj["id"], script["id"])
         assert result is True
         script_comps = [c for c in obj["components"] if c.get("type") == "ScriptComponent"]
         assert len(script_comps) == 0

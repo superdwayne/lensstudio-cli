@@ -1,4 +1,4 @@
-"""Tests for material operations."""
+"""Tests for material operations (flat sceneObjects format)."""
 
 import pytest
 
@@ -98,19 +98,17 @@ class TestRemoveMaterial:
 class TestAssignMaterial:
     def test_assign_to_mesh_visual(self, sample_project):
         data, _, _ = sample_project
-        scene_root = data["scene"]["root"]
-        obj = add_object(scene_root, "MeshObj")
-        add_component(scene_root, obj["id"], "MeshVisual")
+        obj = add_object(data, "MeshObj")
+        add_component(data, obj["id"], "MeshVisual")
         mat = create_material(data, "Assigned")
 
-        result = assign_material(data, scene_root, obj["id"], mat["id"])
-        assert result["materialId"] == mat["id"]
+        result = assign_material(data, obj["id"], mat["id"])
+        assert result["properties"]["materialId"] == mat["id"]
 
     def test_assign_no_visual_raises(self, sample_project):
         data, _, _ = sample_project
-        scene_root = data["scene"]["root"]
-        obj = add_object(scene_root, "EmptyObj")
+        obj = add_object(data, "EmptyObj")
         mat = create_material(data, "NoTarget")
 
         with pytest.raises(ValueError, match="no visual component"):
-            assign_material(data, scene_root, obj["id"], mat["id"])
+            assign_material(data, obj["id"], mat["id"])

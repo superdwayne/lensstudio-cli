@@ -45,16 +45,11 @@ def project_info(ctx, path, json_mode):
             f"Project: {info['name']}",
             {
                 "ID": info["id"],
-                "Template": info["template"],
-                "Created": info["created"],
-                "Modified": info["modified"],
-                "Lens Studio": info["lensStudioVersion"],
+                "Version": info["version"],
                 "Scene Objects": str(info["sceneObjects"]),
-                "Assets": str(info["assets"]),
-                "Scripts": str(info["scripts"]),
-                "Materials": str(info["materials"]),
-                "Platform": info["targetPlatform"],
-                "Resolution": f"{info['resolution'].get('width', '?')}x{info['resolution'].get('height', '?')}",
+                "Resources": str(info["resources"]),
+                "Target Device": info["targetDevice"],
+                "Orientation": info["orientation"],
             },
             json_mode=json_mode,
         )
@@ -77,15 +72,15 @@ def project_list(directory, json_mode):
         for p in projects:
             rows.append([
                 p.get("name", "?"),
-                p.get("template", "?"),
+                p.get("version", "?"),
                 str(p.get("sceneObjects", "?")),
-                str(p.get("assets", "?")),
-                p.get("modified", "?")[:10] if p.get("modified") else "?",
+                str(p.get("resources", "?")),
+                p.get("targetDevice", "?"),
             ])
 
         render_table(
             "Lens Studio Projects",
-            ["Name", "Template", "Objects", "Assets", "Modified"],
+            ["Name", "Version", "Objects", "Resources", "Device"],
             rows,
             json_mode=json_mode,
             json_key="projects",

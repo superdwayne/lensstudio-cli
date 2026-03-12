@@ -45,19 +45,8 @@ def import_asset(
     detected_type = asset_type or detect_asset_type(source_path)
     asset_name = name or src.stem
 
-    # Determine destination subdirectory
-    type_to_dir = {
-        "texture": "Textures",
-        "mesh": "Meshes",
-        "audio": "Audio",
-        "video": "Audio",
-        "font": "Fonts",
-        "script": "Scripts",
-        "material": "Materials",
-        "prefab": "Prefabs",
-    }
-    sub_dir = type_to_dir.get(detected_type, "Resources")
-    dest_dir = Path(project_dir) / sub_dir
+    # Real LS projects use Public/ for all assets
+    dest_dir = Path(project_dir) / "Public"
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest_path = dest_dir / src.name
 
@@ -71,7 +60,7 @@ def import_asset(
         "name": asset_name,
         "type": detected_type,
         "fileName": src.name,
-        "relativePath": f"{sub_dir}/{src.name}",
+        "relativePath": f"Public/{src.name}",
         "fileSize": os.path.getsize(str(dest_path)),
         "imported": _timestamp(),
     }
