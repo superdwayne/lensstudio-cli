@@ -28,8 +28,11 @@ _LS_PATHS = {
 # Default project directory
 DEFAULT_PROJECTS_DIR = os.path.expanduser("~/LensStudio/Projects")
 
-# Lens Studio project file extension
-PROJECT_EXT = ".lsproj"
+# Lens Studio project file extension (LS 5.x uses .esproj YAML format)
+PROJECT_EXT = ".esproj"
+
+# Path to the default project template inside the LS app bundle
+LS_TEMPLATE_DIR = "/Applications/Lens Studio.app/Contents/Resources/ModelResources.bundle/ProjectTemplates/Default"
 
 # Supported asset types
 ASSET_TYPES = {

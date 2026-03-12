@@ -22,7 +22,7 @@ def project_with_runner(runner, tmp_dir):
         "project", "new", "-n", "CLITest", "-d", tmp_dir,
     ], obj={})
     assert result.exit_code == 0
-    project_path = os.path.join(tmp_dir, "CLITest", "CLITest.lsproj")
+    project_path = os.path.join(tmp_dir, "CLITest", "CLITest.esproj")
     return runner, project_path, tmp_dir
 
 

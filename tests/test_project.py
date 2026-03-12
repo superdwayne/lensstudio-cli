@@ -51,10 +51,10 @@ class TestCreateProject:
         assert result["name"] == "MyLens"
         assert result["template"] == "blank"
 
-    def test_creates_public_directory(self, tmp_dir):
+    def test_creates_assets_directory(self, tmp_dir):
         result = create_project("MyLens", directory=tmp_dir)
         project_dir = Path(result["directory"])
-        assert (project_dir / "Public").is_dir()
+        assert (project_dir / "Assets").is_dir()
 
     def test_duplicate_project_raises(self, tmp_dir):
         create_project("Dupe", directory=tmp_dir)

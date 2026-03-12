@@ -1,18 +1,20 @@
 """Project management for Lens Studio CLI.
 
-Handles creation, loading, inspection, and manipulation of .lsproj project files.
-Matches the real Lens Studio file format so projects open natively in the app.
+Handles creation, loading, inspection, and manipulation of .esproj project files.
+Uses the real Lens Studio 5.x YAML format so projects open natively in the app.
 """
 
 import json
 import os
 import shutil
 import uuid
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import yaml
+
 from ..utils.config import (
+    LS_TEMPLATE_DIR,
     PROJECT_EXT,
     TEMPLATES,
     ensure_dir,
@@ -53,22 +55,70 @@ def _make_scene_object(
     transform: Optional[Dict] = None,
 ) -> Dict:
     """Create a SceneObject matching real LS format."""
-    return {
+    obj = {
         "id": _new_uuid(),
         "name": name,
         "enabled": True,
-        "parentId": parent_id,
         "transform": transform or _default_transform(),
         "components": components or [],
+    }
+    if parent_id:
+        obj["parentId"] = parent_id
+    return obj
+
+
+# ---------------------------------------------------------------------------
+# .esproj YAML helpers
+# ---------------------------------------------------------------------------
+
+def _blank_esproj(name: str) -> Dict[str, Any]:
+    """Generate the .esproj YAML content matching LS 5.x format."""
+    return {
+        "studioVersion": {
+            "major": 5,
+            "minor": 18,
+            "patch": 0,
+            "build": 26021107,
+            "type": "Public",
+        },
+        "coreVersion": 348,
+        "clientVersion": 13.78,
+        "updateCheckpoint": 87,
+        "sceneId": _new_uuid(),
+        "metaInfo": {
+            "hints": [],
+            "tags": [],
+            "lensName": name,
+            "lensDescriptors": [],
+            "lensApplicableContext": ["live_camera", "reply_camera", "video_chat"],
+            "lensApplicability": ["Front", "Back"],
+            "lensClientCompatibilities": ["Mobile", "Web"],
+            "platformBundlesEnabled": False,
+            "iconHash": "",
+            "videoPreviewHash": "",
+            "fromTemplateName": "Empty Project",
+            "fromTemplateUrl": "Lens Studio 5.18.0.26021107",
+            "activationCamera": "Front",
+            "sourceMapEnabled": False,
+            "shaderCacheInvalidationEnabled": False,
+            "usingMinClientVersions": False,
+            "androidMinClientVersion": {"major": 0, "minor": 0, "patch": 0, "build": 0},
+            "iOSMinClientVersion": {"major": 0, "minor": 0, "patch": 0, "build": 0},
+            "documentId": _new_uuid(),
+            "originalDocumentId": _new_uuid(),
+            "packageId": "",
+            "packageVersion": "",
+            "gluboEnabled": False,
+        },
     }
 
 
 # ---------------------------------------------------------------------------
-# Project file schema — matches real Lens Studio .lsproj format
+# Internal scene data (stored as companion .scene.json alongside .esproj)
 # ---------------------------------------------------------------------------
 
 def blank_project(name: str, template: str = "blank") -> Dict[str, Any]:
-    """Generate a Lens Studio project in the real .lsproj format."""
+    """Generate a Lens Studio project scene data."""
     scene_objects = _template_scene_objects(template)
 
     return {
@@ -88,7 +138,6 @@ def _template_scene_objects(template: str) -> List[Dict]:
     """Build the initial sceneObjects list based on template."""
     objects = []
 
-    # Every project gets a perspective camera
     objects.append(_make_scene_object("Camera", [
         _make_component("Camera", {
             "cameraType": "Perspective",
@@ -100,7 +149,6 @@ def _template_scene_objects(template: str) -> List[Dict]:
         }),
     ]))
 
-    # Orthographic camera for 2D overlays
     objects.append(_make_scene_object("Orthographic Camera", [
         _make_component("Camera", {
             "cameraType": "Orthographic",
@@ -148,68 +196,136 @@ def create_project(
     directory: Optional[str] = None,
     template: str = "blank",
 ) -> Dict[str, Any]:
-    """Create a new Lens Studio project."""
+    """Create a new Lens Studio project by copying the real LS template."""
     if template not in TEMPLATES:
         raise ValueError(f"Unknown template '{template}'. Available: {', '.join(TEMPLATES)}")
 
     base_dir = Path(directory) if directory else get_projects_dir()
-    project_dir = ensure_dir(base_dir / name)
-    project_file = project_dir / f"{name}{PROJECT_EXT}"
+    project_dir = base_dir / name
 
-    if project_file.exists():
-        raise FileExistsError(f"Project already exists: {project_file}")
+    if project_dir.exists():
+        raise FileExistsError(f"Project already exists: {project_dir}")
 
-    data = blank_project(name, template)
+    # Copy the real LS template if available
+    ls_template = Path(LS_TEMPLATE_DIR)
+    if ls_template.exists():
+        shutil.copytree(str(ls_template), str(project_dir))
+        # Rename Project.esproj to <name>.esproj
+        template_esproj = project_dir / "Project.esproj"
+        project_file = project_dir / f"{name}{PROJECT_EXT}"
+        if template_esproj.exists():
+            # Read, update name, write
+            with open(template_esproj) as f:
+                esproj_data = yaml.safe_load(f)
+            esproj_data["metaInfo"]["lensName"] = name
+            esproj_data["metaInfo"]["documentId"] = _new_uuid()
+            esproj_data["metaInfo"]["originalDocumentId"] = _new_uuid()
+            esproj_data["sceneId"] = _new_uuid()
+            with open(project_file, "w") as f:
+                yaml.dump(esproj_data, f, default_flow_style=False, sort_keys=False)
+            template_esproj.unlink()
+        else:
+            # No template .esproj — generate one
+            esproj_data = _blank_esproj(name)
+            with open(project_file, "w") as f:
+                yaml.dump(esproj_data, f, default_flow_style=False, sort_keys=False)
+    else:
+        # No LS installation — create minimal project structure
+        ensure_dir(project_dir)
+        ensure_dir(project_dir / "Assets")
+        ensure_dir(project_dir / "Cache")
+        ensure_dir(project_dir / "Packages")
+        project_file = project_dir / f"{name}{PROJECT_EXT}"
+        esproj_data = _blank_esproj(name)
+        with open(project_file, "w") as f:
+            yaml.dump(esproj_data, f, default_flow_style=False, sort_keys=False)
 
-    # Real LS projects use a Public/ subdirectory for assets
-    ensure_dir(project_dir / "Public")
-
-    # Write project file
-    with open(project_file, "w") as f:
-        json.dump(data, f, indent=2)
+    # Also write scene data as companion JSON (for CLI operations)
+    scene_data = blank_project(name, template)
+    scene_file = project_dir / f"{name}.scene.json"
+    with open(scene_file, "w") as f:
+        json.dump(scene_data, f, indent=2)
 
     return {
         "name": name,
         "path": str(project_file),
         "directory": str(project_dir),
         "template": template,
-        "id": data["id"],
+        "id": esproj_data.get("sceneId", scene_data["id"]),
     }
 
 
 def load_project(path: str) -> Dict[str, Any]:
-    """Load a project from a .lsproj file."""
+    """Load a project's scene data. Accepts .esproj or .scene.json path."""
     p = Path(path)
     if not p.exists():
         raise FileNotFoundError(f"Project file not found: {path}")
-    if p.suffix != PROJECT_EXT:
-        raise ValueError(f"Not a Lens Studio project file: {path}")
 
-    with open(p, "r") as f:
-        return json.load(f)
+    # If given .esproj, look for companion .scene.json
+    if p.suffix == PROJECT_EXT:
+        scene_file = p.parent / f"{p.stem}.scene.json"
+        if scene_file.exists():
+            with open(scene_file) as f:
+                return json.load(f)
+        # No scene file — return minimal data from esproj
+        with open(p) as f:
+            esproj = yaml.safe_load(f)
+        return {
+            "id": esproj.get("sceneId", ""),
+            "name": esproj.get("metaInfo", {}).get("lensName", p.stem),
+            "version": "5.0",
+            "sceneObjects": [],
+            "resources": [],
+            "settings": {"targetDevice": "mobile", "orientation": "portrait"},
+        }
+    elif p.suffix == ".json":
+        with open(p) as f:
+            return json.load(f)
+    else:
+        raise ValueError(f"Not a Lens Studio project file: {path}")
 
 
 def save_project(path: str, data: Dict[str, Any]):
-    """Save project data to a .lsproj file."""
-    with open(path, "w") as f:
+    """Save project scene data. Writes companion .scene.json next to .esproj."""
+    p = Path(path)
+    if p.suffix == PROJECT_EXT:
+        scene_file = p.parent / f"{p.stem}.scene.json"
+    else:
+        scene_file = p
+
+    with open(scene_file, "w") as f:
         json.dump(data, f, indent=2)
 
 
 def project_info(path: str) -> Dict[str, Any]:
     """Get summary info about a project."""
+    p = Path(path)
+
+    # Read .esproj YAML for studio metadata
+    esproj_meta = {}
+    if p.suffix == PROJECT_EXT and p.exists():
+        with open(p) as f:
+            esproj = yaml.safe_load(f) or {}
+        meta = esproj.get("metaInfo", {})
+        sv = esproj.get("studioVersion", {})
+        esproj_meta = {
+            "lensName": meta.get("lensName", p.stem),
+            "studioVersion": f"{sv.get('major', '?')}.{sv.get('minor', '?')}.{sv.get('patch', '?')}",
+            "documentId": meta.get("documentId", ""),
+        }
+
+    # Read scene data
     data = load_project(path)
     scene_objects = data.get("sceneObjects", [])
-    resources = data.get("resources", [])
-    settings = data.get("settings", {})
 
     return {
-        "name": data.get("name", "unknown"),
-        "id": data.get("id", "unknown"),
-        "version": data.get("version", "unknown"),
+        "name": esproj_meta.get("lensName", data.get("name", "unknown")),
+        "id": esproj_meta.get("documentId", data.get("id", "unknown")),
+        "version": esproj_meta.get("studioVersion", data.get("version", "unknown")),
         "sceneObjects": len(scene_objects),
-        "resources": len(resources),
-        "targetDevice": settings.get("targetDevice", "mobile"),
-        "orientation": settings.get("orientation", "portrait"),
+        "resources": len(data.get("resources", [])),
+        "targetDevice": data.get("settings", {}).get("targetDevice", "mobile"),
+        "orientation": data.get("settings", {}).get("orientation", "portrait"),
     }
 
 
@@ -222,14 +338,16 @@ def list_projects(directory: Optional[str] = None) -> List[Dict[str, Any]]:
     projects = []
     for item in sorted(base_dir.iterdir()):
         if item.is_dir():
-            proj_file = item / f"{item.name}{PROJECT_EXT}"
-            if proj_file.exists():
-                try:
-                    info = project_info(str(proj_file))
-                    info["path"] = str(proj_file)
-                    projects.append(info)
-                except Exception:
-                    projects.append({"name": item.name, "path": str(proj_file), "error": True})
+            # Check for .esproj files
+            for f in item.iterdir():
+                if f.suffix == PROJECT_EXT:
+                    try:
+                        info = project_info(str(f))
+                        info["path"] = str(f)
+                        projects.append(info)
+                    except Exception:
+                        projects.append({"name": item.name, "path": str(f), "error": True})
+                    break
     return projects
 
 
