@@ -1,19 +1,17 @@
 """Unified REPL interface for Lens Studio CLI — consistent interactive experience."""
 
 import os
-import sys
 import shlex
 from typing import Callable, Optional
 
 from prompt_toolkit import PromptSession
-from prompt_toolkit.history import FileHistory
 from prompt_toolkit.auto_suggest import AutoSuggestFromHistory
 from prompt_toolkit.formatted_text import HTML
+from prompt_toolkit.history import FileHistory
 from rich.console import Console
 from rich.panel import Panel
-from rich.text import Text
 
-from cli_anything.lens_studio import __version__, __app_name__
+from cli_anything.lens_studio import __version__
 
 console = Console()
 

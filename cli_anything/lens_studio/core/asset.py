@@ -6,9 +6,9 @@ Handles importing, listing, removing, and inspecting assets (textures, meshes, a
 import os
 import shutil
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from ..utils.config import ASSET_TYPES
 
@@ -18,7 +18,7 @@ def _new_uuid() -> str:
 
 
 def _timestamp() -> str:
-    return datetime.utcnow().isoformat() + "Z"
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def detect_asset_type(file_path: str) -> str:
@@ -31,12 +31,12 @@ def detect_asset_type(file_path: str) -> str:
 
 
 def import_asset(
-    project_data: Dict,
+    project_data: dict,
     project_dir: str,
     source_path: str,
     name: Optional[str] = None,
     asset_type: Optional[str] = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Import an asset file into the project."""
     src = Path(source_path)
     if not src.exists():
@@ -90,9 +90,9 @@ def import_asset(
 
 
 def list_assets(
-    project_data: Dict,
+    project_data: dict,
     asset_type: Optional[str] = None,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """List assets in the project, optionally filtered by type."""
     assets = project_data.get("assets", [])
     if asset_type:
@@ -100,7 +100,7 @@ def list_assets(
     return assets
 
 
-def get_asset(project_data: Dict, asset_id: str) -> Optional[Dict[str, Any]]:
+def get_asset(project_data: dict, asset_id: str) -> Optional[dict[str, Any]]:
     """Get asset details by ID."""
     for asset in project_data.get("assets", []):
         if asset.get("id") == asset_id:
@@ -108,7 +108,7 @@ def get_asset(project_data: Dict, asset_id: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def get_asset_by_name(project_data: Dict, name: str) -> Optional[Dict[str, Any]]:
+def get_asset_by_name(project_data: dict, name: str) -> Optional[dict[str, Any]]:
     """Get asset details by name."""
     for asset in project_data.get("assets", []):
         if asset.get("name") == name:
@@ -117,7 +117,7 @@ def get_asset_by_name(project_data: Dict, name: str) -> Optional[Dict[str, Any]]
 
 
 def remove_asset(
-    project_data: Dict,
+    project_data: dict,
     project_dir: str,
     asset_id: str,
     delete_file: bool = True,
@@ -143,10 +143,10 @@ def remove_asset(
 
 
 def update_asset(
-    project_data: Dict,
+    project_data: dict,
     asset_id: str,
-    updates: Dict[str, Any],
-) -> Dict[str, Any]:
+    updates: dict[str, Any],
+) -> dict[str, Any]:
     """Update asset properties."""
     asset = get_asset(project_data, asset_id)
     if not asset:

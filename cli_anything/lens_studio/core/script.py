@@ -4,11 +4,10 @@ Handles creating, listing, removing, and attaching scripts to SceneObjects.
 Lens Studio scripts are JavaScript/TypeScript files with a specific API.
 """
 
-import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from .scene import find_object
 
@@ -18,7 +17,7 @@ def _new_uuid() -> str:
 
 
 def _timestamp() -> str:
-    return datetime.utcnow().isoformat() + "Z"
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 # ---------------------------------------------------------------------------
@@ -132,13 +131,13 @@ export class NewScript extends BaseScriptComponent {
 # ---------------------------------------------------------------------------
 
 def create_script(
-    project_data: Dict,
+    project_data: dict,
     project_dir: str,
     name: str,
     template: str = "blank",
     content: Optional[str] = None,
     language: str = "javascript",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Create a new script file and register it in the project."""
     ext = ".ts" if language == "typescript" else ".js"
     filename = f"{name}{ext}"
@@ -175,12 +174,12 @@ def create_script(
     return script_entry
 
 
-def list_scripts(project_data: Dict) -> List[Dict[str, Any]]:
+def list_scripts(project_data: dict) -> list[dict[str, Any]]:
     """List all scripts in the project."""
     return project_data.get("scripts", [])
 
 
-def get_script(project_data: Dict, script_id: str) -> Optional[Dict[str, Any]]:
+def get_script(project_data: dict, script_id: str) -> Optional[dict[str, Any]]:
     """Get script entry by ID."""
     for s in project_data.get("scripts", []):
         if s.get("id") == script_id:
@@ -188,7 +187,7 @@ def get_script(project_data: Dict, script_id: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def get_script_by_name(project_data: Dict, name: str) -> Optional[Dict[str, Any]]:
+def get_script_by_name(project_data: dict, name: str) -> Optional[dict[str, Any]]:
     """Get script entry by name."""
     for s in project_data.get("scripts", []):
         if s.get("name") == name:
@@ -197,7 +196,7 @@ def get_script_by_name(project_data: Dict, name: str) -> Optional[Dict[str, Any]
 
 
 def remove_script(
-    project_data: Dict,
+    project_data: dict,
     project_dir: str,
     script_id: str,
     delete_file: bool = True,
@@ -227,10 +226,10 @@ def remove_script(
 
 
 def attach_script(
-    project_data: Dict,
+    project_data: dict,
     object_id: str,
     script_id: str,
-) -> Dict:
+) -> dict:
     """Attach a script to a scene object as a ScriptComponent."""
     script = get_script(project_data, script_id)
     if not script:
@@ -254,7 +253,7 @@ def attach_script(
     return component
 
 
-def detach_script(project_data: Dict, object_id: str, script_id: str) -> bool:
+def detach_script(project_data: dict, object_id: str, script_id: str) -> bool:
     """Detach a script from a scene object."""
     obj = find_object(project_data, object_id)
     if not obj:
@@ -269,7 +268,7 @@ def detach_script(project_data: Dict, object_id: str, script_id: str) -> bool:
     return len(obj["components"]) < original_len
 
 
-def read_script_content(project_dir: str, script_entry: Dict) -> str:
+def read_script_content(project_dir: str, script_entry: dict) -> str:
     """Read the content of a script file."""
     rel_path = script_entry.get("relativePath", "")
     if not rel_path:
@@ -280,7 +279,7 @@ def read_script_content(project_dir: str, script_entry: Dict) -> str:
     return file_path.read_text()
 
 
-def write_script_content(project_dir: str, script_entry: Dict, content: str):
+def write_script_content(project_dir: str, script_entry: dict, content: str):
     """Write content to a script file."""
     rel_path = script_entry.get("relativePath", "")
     if not rel_path:
@@ -289,7 +288,7 @@ def write_script_content(project_dir: str, script_entry: Dict, content: str):
     file_path.write_text(content)
 
 
-def _remove_script_refs(project_data: Dict, script_id: str):
+def _remove_script_refs(project_data: dict, script_id: str):
     """Remove ScriptComponent references to a script from all scene objects."""
     for obj in project_data.get("sceneObjects", []):
         components = obj.get("components", [])

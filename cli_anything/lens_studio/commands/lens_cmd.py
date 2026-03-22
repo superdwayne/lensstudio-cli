@@ -2,9 +2,9 @@
 
 import click
 
-from ..core import project as proj_core
 from ..core import lens as lens_core
-from ..utils.formatter import success, error, render_detail
+from ..core import project as proj_core
+from ..utils.formatter import error, render_detail, success
 
 
 def _load_project(ctx):
@@ -23,7 +23,10 @@ def lens_group():
 
 @lens_group.command("build")
 @click.option("-o", "--output", required=True, help="Output file path")
-@click.option("-t", "--target", default="snapchat", type=click.Choice(["snapchat", "spectacles", "web"]), help="Target platform")
+@click.option(
+    "-t", "--target", default="snapchat",
+    type=click.Choice(["snapchat", "spectacles", "web"]), help="Target platform",
+)
 @click.option("--json", "json_mode", is_flag=True, help="Output JSON")
 @click.pass_context
 def lens_build(ctx, output, target, json_mode):

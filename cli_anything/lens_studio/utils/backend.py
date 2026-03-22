@@ -4,10 +4,9 @@ import json
 import os
 import platform
 import subprocess
-import tempfile
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
+from ..exceptions import LensStudioNotFoundError
 from .config import find_lens_studio
 
 
@@ -29,7 +28,7 @@ class LensStudioBackend:
     def require(self):
         """Raise if Lens Studio is not available."""
         if not self.available:
-            raise RuntimeError(
+            raise LensStudioNotFoundError(
                 "Lens Studio not found. Install from https://lensstudio.snapchat.com/ "
                 "or set LENS_STUDIO_PATH environment variable."
             )
@@ -76,7 +75,7 @@ class LensStudioBackend:
             args.extend(["--device", device])
         return self._run(args, timeout=30, detach=True)
 
-    def validate_project(self, project_path: str) -> Dict[str, Any]:
+    def validate_project(self, project_path: str) -> dict[str, Any]:
         """Validate a project for submission readiness."""
         self.require()
         try:
@@ -90,18 +89,20 @@ class LensStudioBackend:
 
     def _run(
         self,
-        args: List[str],
+        args: list[str],
         timeout: Optional[int] = None,
         detach: bool = False,
     ) -> subprocess.CompletedProcess:
         """Run Lens Studio with given arguments."""
-        cmd = [self._executable] + args
+        self.require()
+        exe: str = self._executable  # type: ignore[assignment]  # require() guarantees non-None
+        cmd: list[str] = [exe] + args
 
         if detach:
             if platform.system() == "Darwin":
-                subprocess.Popen(cmd, start_new_session=True)
+                subprocess.Popen(cmd, start_new_session=True)  # noqa: S603
             else:
-                subprocess.Popen(
+                subprocess.Popen(  # noqa: S603
                     cmd,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
@@ -109,7 +110,7 @@ class LensStudioBackend:
                 )
             return subprocess.CompletedProcess(cmd, 0, "", "")
 
-        return subprocess.run(
+        return subprocess.run(  # noqa: S603
             cmd,
             capture_output=True,
             text=True,

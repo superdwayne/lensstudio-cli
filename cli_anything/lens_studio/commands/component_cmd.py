@@ -4,9 +4,9 @@ import json as json_lib
 
 import click
 
-from ..core import project as proj_core
 from ..core import component as comp_core
-from ..utils.formatter import success, error, render_table, render_detail
+from ..core import project as proj_core
+from ..utils.formatter import error, render_table, success
 
 
 def _load_project(ctx):

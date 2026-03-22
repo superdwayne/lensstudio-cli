@@ -4,8 +4,8 @@ Handles creating, editing, listing, and assigning materials to scene objects.
 """
 
 import uuid
-from datetime import datetime
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timezone
+from typing import Any, Optional
 
 from ..utils.config import MATERIAL_TYPES
 from .scene import find_object
@@ -16,7 +16,7 @@ def _new_uuid() -> str:
 
 
 def _timestamp() -> str:
-    return datetime.utcnow().isoformat() + "Z"
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 # ---------------------------------------------------------------------------
@@ -123,11 +123,11 @@ _MATERIAL_DEFAULTS = {
 # ---------------------------------------------------------------------------
 
 def create_material(
-    project_data: Dict,
+    project_data: dict,
     name: str,
     material_type: str = "Default",
-    properties: Optional[Dict] = None,
-) -> Dict[str, Any]:
+    properties: Optional[dict] = None,
+) -> dict[str, Any]:
     """Create a new material."""
     if material_type not in MATERIAL_TYPES:
         raise ValueError(
@@ -154,9 +154,9 @@ def create_material(
 
 
 def list_materials(
-    project_data: Dict,
+    project_data: dict,
     material_type: Optional[str] = None,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """List all materials, optionally filtered by type."""
     materials = project_data.get("materials", [])
     if material_type:
@@ -164,7 +164,7 @@ def list_materials(
     return materials
 
 
-def get_material(project_data: Dict, mat_id: str) -> Optional[Dict[str, Any]]:
+def get_material(project_data: dict, mat_id: str) -> Optional[dict[str, Any]]:
     """Get material by ID."""
     for m in project_data.get("materials", []):
         if m.get("id") == mat_id:
@@ -172,7 +172,7 @@ def get_material(project_data: Dict, mat_id: str) -> Optional[Dict[str, Any]]:
     return None
 
 
-def get_material_by_name(project_data: Dict, name: str) -> Optional[Dict[str, Any]]:
+def get_material_by_name(project_data: dict, name: str) -> Optional[dict[str, Any]]:
     """Get material by name."""
     for m in project_data.get("materials", []):
         if m.get("name") == name:
@@ -181,10 +181,10 @@ def get_material_by_name(project_data: Dict, name: str) -> Optional[Dict[str, An
 
 
 def update_material(
-    project_data: Dict,
+    project_data: dict,
     mat_id: str,
-    updates: Dict[str, Any],
-) -> Dict[str, Any]:
+    updates: dict[str, Any],
+) -> dict[str, Any]:
     """Update material properties."""
     material = get_material(project_data, mat_id)
     if not material:
@@ -203,7 +203,7 @@ def update_material(
     return material
 
 
-def remove_material(project_data: Dict, mat_id: str) -> bool:
+def remove_material(project_data: dict, mat_id: str) -> bool:
     """Remove a material from the project."""
     material = get_material(project_data, mat_id)
     if not material:
@@ -216,10 +216,10 @@ def remove_material(project_data: Dict, mat_id: str) -> bool:
 
 
 def assign_material(
-    project_data: Dict,
+    project_data: dict,
     object_id: str,
     mat_id: str,
-) -> Dict:
+) -> dict:
     """Assign a material to a scene object's MeshVisual or Image component."""
     material = get_material(project_data, mat_id)
     if not material:

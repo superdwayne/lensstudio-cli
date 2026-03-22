@@ -3,7 +3,7 @@
 import click
 
 from ..core import project as proj_core
-from ..utils.formatter import success, error, render_table, render_detail
+from ..utils.formatter import error, render_detail, render_table, success
 
 
 @click.group("project")
@@ -102,7 +102,7 @@ def project_open(ctx, path, json_mode):
         from ..core.lens import open_in_lens_studio
         result = open_in_lens_studio(path)
         if result["success"]:
-            success(f"Opened project in Lens Studio", json_mode=json_mode, data=result)
+            success("Opened project in Lens Studio", json_mode=json_mode, data=result)
         else:
             error(result.get("error", "Failed to open"), json_mode=json_mode)
     except Exception as e:

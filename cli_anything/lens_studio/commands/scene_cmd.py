@@ -1,12 +1,11 @@
 """CLI commands for scene graph operations."""
 
-import json as json_lib
 
 import click
 
 from ..core import project as proj_core
 from ..core import scene as scene_core
-from ..utils.formatter import success, error, render_table, render_tree
+from ..utils.formatter import error, render_table, render_tree, success
 
 
 def _load_project(ctx):

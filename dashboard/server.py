@@ -1,14 +1,22 @@
 """Live dashboard server for LS-CLI — see changes as they happen."""
 
 import json
+import logging
 import os
+import secrets
 import sys
 import tempfile
 import time
+from collections import defaultdict
+from functools import wraps
 from pathlib import Path
 
 from flask import Flask, jsonify, request, send_from_directory
-from flask_cors import CORS
+
+try:
+    from flask_cors import CORS
+except ImportError:
+    CORS = None
 
 # Add parent to path so we can import the CLI package
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -23,8 +31,90 @@ from cli_anything.lens_studio.core import lens as lens_core
 from cli_anything.lens_studio.core import template as tmpl_core
 from cli_anything.lens_studio.utils.config import COMPONENT_TYPES, MATERIAL_TYPES, TEMPLATES
 
+# ── Logging ───────────────────────────────────────────────────────────
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+    datefmt="%Y-%m-%dT%H:%M:%S",
+)
+logger = logging.getLogger("ls-cli-dashboard")
+
+# ── App init ──────────────────────────────────────────────────────────
+
 app = Flask(__name__, static_folder="static")
-CORS(app)
+
+# CORS – default to localhost-only origins; override via env var
+_cors_origins = os.environ.get(
+    "LS_CLI_CORS_ORIGINS",
+    "http://localhost:5199,http://127.0.0.1:5199",
+)
+if CORS is not None:
+    CORS(app, origins=[o.strip() for o in _cors_origins.split(",")])
+
+# ── API token auth ────────────────────────────────────────────────────
+
+API_TOKEN = os.environ.get("LS_CLI_DASHBOARD_TOKEN") or secrets.token_urlsafe(32)
+
+
+def require_auth(f):
+    """Decorator that enforces Bearer-token auth on API routes."""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth = request.headers.get("Authorization", "")
+        if not auth.startswith("Bearer ") or auth[7:] != API_TOKEN:
+            return jsonify({"error": "Unauthorized"}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+
+# ── Rate limiting (in-memory, 60 req/min per IP) ─────────────────────
+
+_rate_buckets: dict[str, list[float]] = defaultdict(list)
+RATE_LIMIT = 60  # requests
+RATE_WINDOW = 60  # seconds
+
+
+def _check_rate_limit() -> bool:
+    """Return True if the request should be allowed, False if rate-limited."""
+    ip = request.remote_addr or "unknown"
+    now = time.time()
+    bucket = _rate_buckets[ip]
+    # Purge entries older than the window
+    _rate_buckets[ip] = [t for t in bucket if now - t < RATE_WINDOW]
+    if len(_rate_buckets[ip]) >= RATE_LIMIT:
+        return False
+    _rate_buckets[ip].append(now)
+    return True
+
+
+# ── Request logging & rate-limit hook (API routes only) ──────────────
+
+@app.before_request
+def _before_api_request():
+    """Log API requests and enforce rate limiting on /api/* routes."""
+    if not request.path.startswith("/api/"):
+        return None
+    # Rate limit check
+    if not _check_rate_limit():
+        logger.warning(
+            "%s %s 429 %s (rate limited)",
+            request.method, request.path, request.remote_addr,
+        )
+        return jsonify({"error": "Too Many Requests"}), 429
+    return None
+
+
+@app.after_request
+def _after_request(response):
+    """Log completed API requests."""
+    if request.path.startswith("/api/"):
+        logger.info(
+            "%s %s %s %s",
+            request.method, request.path, response.status_code, request.remote_addr,
+        )
+    return response
+
 
 # In-memory state
 STATE = {
@@ -80,6 +170,7 @@ def static_files(path):
 # ── API: State ────────────────────────────────────────────────────────
 
 @app.route("/api/state")
+@require_auth
 def api_state():
     """Get full current state."""
     data = STATE["project_data"]
@@ -113,6 +204,7 @@ def api_state():
 
 
 @app.route("/api/log")
+@require_auth
 def api_log():
     """Get only the event log (for polling)."""
     return jsonify({"log": STATE["log"]})
@@ -121,11 +213,13 @@ def api_log():
 # ── API: Templates ────────────────────────────────────────────────────
 
 @app.route("/api/templates")
+@require_auth
 def api_templates():
     return jsonify({"templates": tmpl_core.list_templates()})
 
 
 @app.route("/api/templates/<name>")
+@require_auth
 def api_template_info(name):
     try:
         return jsonify(tmpl_core.template_info(name))
@@ -136,6 +230,7 @@ def api_template_info(name):
 # ── API: Project ──────────────────────────────────────────────────────
 
 @app.route("/api/project/new", methods=["POST"])
+@require_auth
 def api_project_new():
     body = request.json
     name = body.get("name", "Untitled")
@@ -154,6 +249,7 @@ def api_project_new():
 
 
 @app.route("/api/project/info")
+@require_auth
 def api_project_info():
     if not STATE["project_path"]:
         return jsonify({"error": "No project loaded"}), 400
@@ -164,6 +260,7 @@ def api_project_info():
 # ── API: Scene ────────────────────────────────────────────────────────
 
 @app.route("/api/scene")
+@require_auth
 def api_scene():
     if not STATE["project_data"]:
         return jsonify({"error": "No project loaded"}), 400
@@ -172,6 +269,7 @@ def api_scene():
 
 
 @app.route("/api/scene/add", methods=["POST"])
+@require_auth
 def api_scene_add():
     if not STATE["project_data"]:
         return jsonify({"error": "No project loaded"}), 400
@@ -191,6 +289,7 @@ def api_scene_add():
 
 
 @app.route("/api/scene/remove", methods=["POST"])
+@require_auth
 def api_scene_remove():
     if not STATE["project_data"]:
         return jsonify({"error": "No project loaded"}), 400
@@ -211,6 +310,7 @@ def api_scene_remove():
 
 
 @app.route("/api/scene/transform", methods=["POST"])
+@require_auth
 def api_scene_transform():
     if not STATE["project_data"]:
         return jsonify({"error": "No project loaded"}), 400
@@ -234,6 +334,7 @@ def api_scene_transform():
 
 
 @app.route("/api/scene/rename", methods=["POST"])
+@require_auth
 def api_scene_rename():
     if not STATE["project_data"]:
         return jsonify({"error": "No project loaded"}), 400
@@ -253,6 +354,7 @@ def api_scene_rename():
 
 
 @app.route("/api/scene/duplicate", methods=["POST"])
+@require_auth
 def api_scene_duplicate():
     if not STATE["project_data"]:
         return jsonify({"error": "No project loaded"}), 400
@@ -271,6 +373,7 @@ def api_scene_duplicate():
 
 
 @app.route("/api/scene/toggle", methods=["POST"])
+@require_auth
 def api_scene_toggle():
     if not STATE["project_data"]:
         return jsonify({"error": "No project loaded"}), 400
@@ -293,11 +396,13 @@ def api_scene_toggle():
 # ── API: Components ───────────────────────────────────────────────────
 
 @app.route("/api/component/types")
+@require_auth
 def api_component_types():
     return jsonify({"types": comp_core.list_component_types()})
 
 
 @app.route("/api/component/add", methods=["POST"])
+@require_auth
 def api_component_add():
     if not STATE["project_data"]:
         return jsonify({"error": "No project loaded"}), 400
@@ -318,6 +423,7 @@ def api_component_add():
 
 
 @app.route("/api/component/remove", methods=["POST"])
+@require_auth
 def api_component_remove():
     if not STATE["project_data"]:
         return jsonify({"error": "No project loaded"}), 400
@@ -339,6 +445,7 @@ def api_component_remove():
 # ── API: Scripts ──────────────────────────────────────────────────────
 
 @app.route("/api/script/create", methods=["POST"])
+@require_auth
 def api_script_create():
     if not STATE["project_data"]:
         return jsonify({"error": "No project loaded"}), 400
@@ -361,6 +468,7 @@ def api_script_create():
 
 
 @app.route("/api/script/templates")
+@require_auth
 def api_script_templates():
     return jsonify({"templates": list(script_core.SCRIPT_TEMPLATES.keys())})
 
@@ -368,11 +476,13 @@ def api_script_templates():
 # ── API: Materials ────────────────────────────────────────────────────
 
 @app.route("/api/material/types")
+@require_auth
 def api_material_types():
     return jsonify({"types": MATERIAL_TYPES})
 
 
 @app.route("/api/material/create", methods=["POST"])
+@require_auth
 def api_material_create():
     if not STATE["project_data"]:
         return jsonify({"error": "No project loaded"}), 400
@@ -394,6 +504,7 @@ def api_material_create():
 # ── API: Lens ─────────────────────────────────────────────────────────
 
 @app.route("/api/lens/validate", methods=["POST"])
+@require_auth
 def api_lens_validate():
     if not STATE["project_data"]:
         return jsonify({"error": "No project loaded"}), 400
@@ -408,6 +519,7 @@ def api_lens_validate():
 
 
 @app.route("/api/lens/build", methods=["POST"])
+@require_auth
 def api_lens_build():
     if not STATE["project_data"] or not STATE["project_path"]:
         return jsonify({"error": "No project loaded"}), 400
@@ -430,6 +542,11 @@ def _save():
 
 
 if __name__ == "__main__":
+    host = os.environ.get("LS_CLI_DASHBOARD_HOST", "127.0.0.1")
+    port = 5199
     print("\n  🔮 LS-CLI Live Dashboard")
-    print("  http://localhost:5199\n")
-    app.run(host="0.0.0.0", port=5199, debug=False)
+    print(f"  http://{host}:{port}")
+    if not os.environ.get("LS_CLI_DASHBOARD_TOKEN"):
+        print(f"  Auth token (auto-generated): {API_TOKEN}")
+    print()
+    app.run(host=host, port=port, debug=False)

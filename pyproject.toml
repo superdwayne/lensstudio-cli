@@ -14,7 +14,7 @@ authors = [
 ]
 keywords = ["lens-studio", "snapchat", "ar", "cli", "agent", "ai"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
@@ -32,6 +32,14 @@ dependencies = [
     "pyyaml>=6.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "mypy>=1.0",
+    "ruff>=0.4.0",
+    "pytest-cov>=4.0",
+]
+
 [project.scripts]
 cli-anything-lens-studio = "cli_anything.lens_studio.cli:main"
 ls-cli = "cli_anything.lens_studio.cli:main"
@@ -43,9 +51,46 @@ Repository = "https://github.com/HKUDS/CLI-Anything"
 [tool.setuptools.packages.find]
 include = ["cli_anything*"]
 
+[tool.ruff]
+target-version = "py39"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "S", "B", "A", "C4", "PT"]
+
+[tool.ruff.lint.per-file-ignores]
+# String literals containing Lens Studio script templates exceed line length
+"cli_anything/lens_studio/core/script.py" = ["E501"]
+# REPL banner art exceeds line length
+"cli_anything/lens_studio/utils/repl_skin.py" = ["E501"]
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = false
+warn_unused_configs = true
+disallow_untyped_defs = false
+no_implicit_optional = false
+
+[[tool.mypy.overrides]]
+module = [
+    "cli_anything.lens_studio.utils.formatter",
+    "cli_anything.lens_studio.core.component",
+    "cli_anything.lens_studio.core.material",
+    "cli_anything.lens_studio.core.scene",
+    "cli_anything.lens_studio.core.template",
+]
+disable_error_code = ["arg-type", "attr-defined", "var-annotated", "assignment"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
+
+[tool.coverage.run]
+source = ["cli_anything"]
+
+[tool.coverage.report]
+fail_under = 60
+show_missing = true

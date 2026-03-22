@@ -2,19 +2,18 @@
 
 import json
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from rich.console import Console
-from rich.table import Table
 from rich.panel import Panel
-from rich.text import Text
+from rich.table import Table
 from rich.tree import Tree
 
 console = Console()
 error_console = Console(stderr=True)
 
 
-def success(message: str, json_mode: bool = False, data: Optional[Dict] = None):
+def success(message: str, json_mode: bool = False, data: Optional[dict] = None):
     """Print a success message or JSON output."""
     if json_mode:
         output = {"status": "success", "message": message}
@@ -25,7 +24,7 @@ def success(message: str, json_mode: bool = False, data: Optional[Dict] = None):
         console.print(f"[green]✓[/green] {message}")
 
 
-def error(message: str, json_mode: bool = False, data: Optional[Dict] = None):
+def error(message: str, json_mode: bool = False, data: Optional[dict] = None):
     """Print an error message or JSON output."""
     if json_mode:
         output = {"status": "error", "message": message}
@@ -59,8 +58,8 @@ def click_echo_json(data: Any):
 
 def render_table(
     title: str,
-    columns: List[str],
-    rows: List[List[str]],
+    columns: list[str],
+    rows: list[list[str]],
     json_mode: bool = False,
     json_key: str = "items",
 ):
@@ -83,7 +82,7 @@ def render_table(
         console.print(table)
 
 
-def render_tree(title: str, items: List[Dict], json_mode: bool = False):
+def render_tree(title: str, items: list[dict], json_mode: bool = False):
     """Render a tree structure or JSON."""
     if json_mode:
         click_echo_json({"tree": items})
@@ -94,7 +93,7 @@ def render_tree(title: str, items: List[Dict], json_mode: bool = False):
     console.print(tree)
 
 
-def _build_tree(parent: Tree, items: List[Dict]):
+def _build_tree(parent: Tree, items: list[dict]):
     """Recursively build a Rich tree."""
     for item in items:
         label = item.get("name", "unnamed")
@@ -107,7 +106,7 @@ def _build_tree(parent: Tree, items: List[Dict]):
             _build_tree(branch, children)
 
 
-def render_detail(title: str, fields: Dict[str, Any], json_mode: bool = False):
+def render_detail(title: str, fields: dict[str, Any], json_mode: bool = False):
     """Render a detail panel or JSON object."""
     if json_mode:
         click_echo_json(fields)

@@ -15,6 +15,12 @@ from cli_anything.lens_studio.core.project import (
     project_info,
     save_project,
 )
+from cli_anything.lens_studio.exceptions import (
+    InvalidTemplateError,
+    ProjectExistsError,
+    ProjectNotFoundError,
+    ValidationError,
+)
 
 
 class TestBlankProject:
@@ -58,11 +64,11 @@ class TestCreateProject:
 
     def test_duplicate_project_raises(self, tmp_dir):
         create_project("Dupe", directory=tmp_dir)
-        with pytest.raises(FileExistsError):
+        with pytest.raises(ProjectExistsError):
             create_project("Dupe", directory=tmp_dir)
 
     def test_invalid_template_raises(self, tmp_dir):
-        with pytest.raises(ValueError, match="Unknown template"):
+        with pytest.raises(InvalidTemplateError, match="Unknown template"):
             create_project("Bad", directory=tmp_dir, template="nonexistent")
 
 
@@ -78,13 +84,13 @@ class TestLoadSaveProject:
         assert reloaded["name"] == "Updated"
 
     def test_load_missing_file(self):
-        with pytest.raises(FileNotFoundError):
+        with pytest.raises(ProjectNotFoundError):
             load_project("/nonexistent/path.lsproj")
 
     def test_load_wrong_extension(self, tmp_dir):
         bad_file = Path(tmp_dir) / "test.txt"
         bad_file.write_text("{}")
-        with pytest.raises(ValueError, match="Not a Lens Studio project"):
+        with pytest.raises(ValidationError, match="Not a Lens Studio project"):
             load_project(str(bad_file))
 
 

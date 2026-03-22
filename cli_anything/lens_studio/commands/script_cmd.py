@@ -4,7 +4,7 @@ import click
 
 from ..core import project as proj_core
 from ..core import script as script_core
-from ..utils.formatter import success, error, render_table, render_detail
+from ..utils.formatter import error, render_table, success
 
 
 def _load_project(ctx):
@@ -25,8 +25,14 @@ def script_group():
 
 @script_group.command("create")
 @click.option("-n", "--name", required=True, help="Script name")
-@click.option("-t", "--template", default="blank", help="Script template (blank, update, tap, tween, behavior, typescript)")
-@click.option("-l", "--language", default="javascript", type=click.Choice(["javascript", "typescript"]), help="Script language")
+@click.option(
+    "-t", "--template", default="blank",
+    help="Script template (blank, update, tap, tween, behavior, typescript)",
+)
+@click.option(
+    "-l", "--language", default="javascript",
+    type=click.Choice(["javascript", "typescript"]), help="Script language",
+)
 @click.option("--json", "json_mode", is_flag=True, help="Output JSON")
 @click.pass_context
 def script_create(ctx, name, template, language, json_mode):

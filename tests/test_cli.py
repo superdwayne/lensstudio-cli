@@ -157,7 +157,14 @@ class TestLensCommands:
         data = json.loads(result.output)
         assert "valid" in data
 
-    def test_lens_build(self, project_with_runner):
+    def test_lens_build(self, project_with_runner, monkeypatch):
+        from cli_anything.lens_studio.utils.backend import LensStudioBackend
+        from cli_anything.lens_studio.core import lens as lens_mod
+
+        # Force the backend to be unavailable so the fallback bundle path is used
+        fake_backend = LensStudioBackend(executable="/nonexistent")
+        monkeypatch.setattr(lens_mod, "get_backend", lambda: fake_backend)
+
         runner, project_path, tmp_dir = project_with_runner
         output = os.path.join(tmp_dir, "output.lens")
         result = runner.invoke(cli, [

@@ -3,12 +3,11 @@
 Handles adding, removing, listing, and configuring components on SceneObjects.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from ..utils.config import COMPONENT_TYPES
-from .scene import find_object
 from .project import _new_uuid
-
+from .scene import find_object
 
 # ---------------------------------------------------------------------------
 # Component defaults
@@ -20,7 +19,10 @@ _COMPONENT_DEFAULTS = {
     "Image": {"texture": None, "materialId": None, "stretchMode": "fill"},
     "Text": {"text": "Text", "font": "default", "size": 48, "color": [1, 1, 1, 1], "alignment": "center"},
     "Text3D": {"text": "3D Text", "font": "default", "size": 1.0, "color": [1, 1, 1, 1]},
-    "ScreenTransform": {"anchors": {"left": 0, "right": 1, "top": 1, "bottom": 0}, "offsets": {"left": 0, "right": 0, "top": 0, "bottom": 0}},
+    "ScreenTransform": {
+        "anchors": {"left": 0, "right": 1, "top": 1, "bottom": 0},
+        "offsets": {"left": 0, "right": 0, "top": 0, "bottom": 0},
+    },
     "ScriptComponent": {"scriptId": None, "inputs": {}},
     "AudioComponent": {"audioTrack": None, "playOnStart": False, "loop": False, "volume": 1.0},
     "AnimationPlayer": {"clip": None, "playOnStart": True, "loop": True},
@@ -58,11 +60,11 @@ _COMPONENT_DEFAULTS = {
 # ---------------------------------------------------------------------------
 
 def add_component(
-    project_data: Dict,
+    project_data: dict,
     object_id: str,
     component_type: str,
-    properties: Optional[Dict] = None,
-) -> Dict[str, Any]:
+    properties: Optional[dict] = None,
+) -> dict[str, Any]:
     """Add a component to a scene object."""
     if component_type not in COMPONENT_TYPES:
         raise ValueError(
@@ -98,7 +100,7 @@ def add_component(
 
 
 def remove_component(
-    project_data: Dict,
+    project_data: dict,
     object_id: str,
     component_type: str,
     index: int = 0,
@@ -122,7 +124,7 @@ def remove_component(
     return True
 
 
-def list_components(project_data: Dict, object_id: str) -> List[Dict[str, Any]]:
+def list_components(project_data: dict, object_id: str) -> list[dict[str, Any]]:
     """List all components on a scene object."""
     obj = find_object(project_data, object_id)
     if not obj:
@@ -131,12 +133,12 @@ def list_components(project_data: Dict, object_id: str) -> List[Dict[str, Any]]:
 
 
 def configure_component(
-    project_data: Dict,
+    project_data: dict,
     object_id: str,
     component_type: str,
-    properties: Dict[str, Any],
+    properties: dict[str, Any],
     index: int = 0,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Configure properties on an existing component."""
     obj = find_object(project_data, object_id)
     if not obj:
@@ -156,7 +158,7 @@ def configure_component(
     return component
 
 
-def list_component_types() -> List[Dict[str, str]]:
+def list_component_types() -> list[dict[str, str]]:
     """List all available component types with descriptions."""
     descriptions = {
         "Camera": "Renders the scene from a viewpoint",

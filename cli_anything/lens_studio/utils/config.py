@@ -6,7 +6,6 @@ import shutil
 from pathlib import Path
 from typing import Optional
 
-
 # Lens Studio application paths by platform
 _LS_PATHS = {
     "Darwin": [

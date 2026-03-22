@@ -5,14 +5,19 @@ Uses the real Lens Studio 5.x YAML format so projects open natively in the app.
 """
 
 import json
-import os
 import shutil
 import uuid
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import yaml
 
+from ..exceptions import (
+    InvalidTemplateError,
+    ProjectExistsError,
+    ProjectNotFoundError,
+    ValidationError,
+)
 from ..utils.config import (
     LS_TEMPLATE_DIR,
     PROJECT_EXT,
@@ -20,18 +25,22 @@ from ..utils.config import (
     ensure_dir,
     get_projects_dir,
 )
+from ..utils.logging import get_logger
+from ..utils.validation import sanitize_project_name, validate_project_path
+
+logger = get_logger(__name__)
 
 
 def _new_uuid() -> str:
     return str(uuid.uuid4())
 
 
-def _vec3(x=0, y=0, z=0) -> Dict[str, float]:
+def _vec3(x=0, y=0, z=0) -> dict[str, float]:
     """Create a Lens Studio {x, y, z} vector."""
     return {"x": x, "y": y, "z": z}
 
 
-def _default_transform() -> Dict[str, Dict]:
+def _default_transform() -> dict[str, dict]:
     return {
         "position": _vec3(),
         "rotation": _vec3(),
@@ -39,7 +48,7 @@ def _default_transform() -> Dict[str, Dict]:
     }
 
 
-def _make_component(comp_type: str, properties: Optional[Dict] = None) -> Dict:
+def _make_component(comp_type: str, properties: Optional[dict] = None) -> dict:
     """Create a component entry matching real LS format."""
     return {
         "type": comp_type,
@@ -50,10 +59,10 @@ def _make_component(comp_type: str, properties: Optional[Dict] = None) -> Dict:
 
 def _make_scene_object(
     name: str,
-    components: Optional[List[Dict]] = None,
+    components: Optional[list[dict]] = None,
     parent_id: Optional[str] = None,
-    transform: Optional[Dict] = None,
-) -> Dict:
+    transform: Optional[dict] = None,
+) -> dict:
     """Create a SceneObject matching real LS format."""
     obj = {
         "id": _new_uuid(),
@@ -71,7 +80,7 @@ def _make_scene_object(
 # .esproj YAML helpers
 # ---------------------------------------------------------------------------
 
-def _blank_esproj(name: str) -> Dict[str, Any]:
+def _blank_esproj(name: str) -> dict[str, Any]:
     """Generate the .esproj YAML content matching LS 5.x format."""
     return {
         "studioVersion": {
@@ -117,7 +126,7 @@ def _blank_esproj(name: str) -> Dict[str, Any]:
 # Internal scene data (stored as companion .scene.json alongside .esproj)
 # ---------------------------------------------------------------------------
 
-def blank_project(name: str, template: str = "blank") -> Dict[str, Any]:
+def blank_project(name: str, template: str = "blank") -> dict[str, Any]:
     """Generate a Lens Studio project scene data."""
     scene_objects = _template_scene_objects(template)
 
@@ -134,7 +143,7 @@ def blank_project(name: str, template: str = "blank") -> Dict[str, Any]:
     }
 
 
-def _template_scene_objects(template: str) -> List[Dict]:
+def _template_scene_objects(template: str) -> list[dict]:
     """Build the initial sceneObjects list based on template."""
     objects = []
 
@@ -195,16 +204,20 @@ def create_project(
     name: str,
     directory: Optional[str] = None,
     template: str = "blank",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Create a new Lens Studio project by copying the real LS template."""
+    name = sanitize_project_name(name)
+
     if template not in TEMPLATES:
-        raise ValueError(f"Unknown template '{template}'. Available: {', '.join(TEMPLATES)}")
+        raise InvalidTemplateError(f"Unknown template '{template}'. Available: {', '.join(TEMPLATES)}")
 
     base_dir = Path(directory) if directory else get_projects_dir()
     project_dir = base_dir / name
 
     if project_dir.exists():
-        raise FileExistsError(f"Project already exists: {project_dir}")
+        raise ProjectExistsError(f"Project already exists: {project_dir}")
+
+    logger.info("Creating project '%s' with template '%s' in %s", name, template, base_dir)
 
     # Copy the real LS template if available
     ls_template = Path(LS_TEMPLATE_DIR)
@@ -246,6 +259,7 @@ def create_project(
     with open(scene_file, "w") as f:
         json.dump(scene_data, f, indent=2)
 
+    logger.info("Project '%s' created at %s", name, project_dir)
     return {
         "name": name,
         "path": str(project_file),
@@ -255,11 +269,13 @@ def create_project(
     }
 
 
-def load_project(path: str) -> Dict[str, Any]:
+def load_project(path: str) -> dict[str, Any]:
     """Load a project's scene data. Accepts .esproj or .scene.json path."""
-    p = Path(path)
+    p = validate_project_path(path)
     if not p.exists():
-        raise FileNotFoundError(f"Project file not found: {path}")
+        logger.error("Project file not found: %s", path)
+        raise ProjectNotFoundError(f"Project file not found: {path}")
+    logger.debug("Loading project from %s", path)
 
     # If given .esproj, look for companion .scene.json
     if p.suffix == PROJECT_EXT:
@@ -282,12 +298,13 @@ def load_project(path: str) -> Dict[str, Any]:
         with open(p) as f:
             return json.load(f)
     else:
-        raise ValueError(f"Not a Lens Studio project file: {path}")
+        raise ValidationError(f"Not a Lens Studio project file: {path}")
 
 
-def save_project(path: str, data: Dict[str, Any]):
+def save_project(path: str, data: dict[str, Any]):
     """Save project scene data. Writes companion .scene.json next to .esproj."""
-    p = Path(path)
+    logger.info("Saving project to %s", path)
+    p = validate_project_path(path)
     if p.suffix == PROJECT_EXT:
         scene_file = p.parent / f"{p.stem}.scene.json"
     else:
@@ -297,7 +314,7 @@ def save_project(path: str, data: Dict[str, Any]):
         json.dump(data, f, indent=2)
 
 
-def project_info(path: str) -> Dict[str, Any]:
+def project_info(path: str) -> dict[str, Any]:
     """Get summary info about a project."""
     p = Path(path)
 
@@ -329,7 +346,7 @@ def project_info(path: str) -> Dict[str, Any]:
     }
 
 
-def list_projects(directory: Optional[str] = None) -> List[Dict[str, Any]]:
+def list_projects(directory: Optional[str] = None) -> list[dict[str, Any]]:
     """List all projects in a directory."""
     base_dir = Path(directory) if directory else get_projects_dir()
     if not base_dir.exists():
@@ -360,7 +377,9 @@ def delete_project(path: str, force: bool = False) -> bool:
         project_dir = p
 
     if not project_dir.exists():
-        raise FileNotFoundError(f"Project not found: {path}")
+        logger.error("Project not found for deletion: %s", path)
+        raise ProjectNotFoundError(f"Project not found: {path}")
 
+    logger.info("Deleting project at %s", project_dir)
     shutil.rmtree(project_dir)
     return True

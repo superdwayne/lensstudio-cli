@@ -2,10 +2,10 @@
 
 import click
 
-from ..core import project as proj_core
 from ..core import material as mat_core
+from ..core import project as proj_core
 from ..utils.config import MATERIAL_TYPES
-from ..utils.formatter import success, error, render_table, render_detail
+from ..utils.formatter import error, render_detail, render_table, success
 
 
 def _load_project(ctx):
@@ -24,7 +24,10 @@ def material_group():
 
 @material_group.command("create")
 @click.option("-n", "--name", required=True, help="Material name")
-@click.option("-t", "--type", "material_type", default="Default", help="Material type (Default, Unlit, PBR, FacePaint, etc.)")
+@click.option(
+    "-t", "--type", "material_type", default="Default",
+    help="Material type (Default, Unlit, PBR, FacePaint, etc.)",
+)
 @click.option("--color", nargs=4, type=float, default=None, help="Base color RGBA (0-1)")
 @click.option("--metallic", type=float, default=None, help="Metallic value (PBR)")
 @click.option("--roughness", type=float, default=None, help="Roughness value (PBR)")

@@ -3,13 +3,13 @@
 Lists and applies built-in project templates.
 """
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from ..utils.config import TEMPLATES
 from .project import create_project
 
 
-def list_templates() -> List[Dict[str, str]]:
+def list_templates() -> list[dict[str, str]]:
     """List all available templates."""
     return [
         {"name": name, "description": desc}
@@ -17,7 +17,7 @@ def list_templates() -> List[Dict[str, str]]:
     ]
 
 
-def get_template(name: str) -> Optional[Dict[str, str]]:
+def get_template(name: str) -> Optional[dict[str, str]]:
     """Get a specific template by name."""
     desc = TEMPLATES.get(name)
     if desc is None:
@@ -29,7 +29,7 @@ def apply_template(
     project_name: str,
     template_name: str,
     directory: Optional[str] = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Create a new project from a template."""
     if template_name not in TEMPLATES:
         raise ValueError(
@@ -44,7 +44,7 @@ def apply_template(
     )
 
 
-def template_info(template_name: str) -> Dict[str, Any]:
+def template_info(template_name: str) -> dict[str, Any]:
     """Get detailed info about a template."""
     if template_name not in TEMPLATES:
         raise ValueError(f"Unknown template: {template_name}")

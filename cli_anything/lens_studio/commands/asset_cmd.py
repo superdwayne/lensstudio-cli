@@ -2,10 +2,10 @@
 
 import click
 
-from ..core import project as proj_core
 from ..core import asset as asset_core
+from ..core import project as proj_core
 from ..utils.config import ASSET_TYPES
-from ..utils.formatter import success, error, render_table, render_detail
+from ..utils.formatter import error, render_detail, render_table, success
 
 
 def _load_project(ctx):

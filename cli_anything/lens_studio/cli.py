@@ -10,17 +10,20 @@ import sys
 import click
 
 from . import __version__
-from .commands.project_cmd import project_group
-from .commands.scene_cmd import scene_group
 from .commands.asset_cmd import asset_group
-from .commands.script_cmd import script_group
-from .commands.material_cmd import material_group
 from .commands.component_cmd import component_group
 from .commands.lens_cmd import lens_group
+from .commands.material_cmd import material_group
+from .commands.project_cmd import project_group
+from .commands.scene_cmd import scene_group
+from .commands.script_cmd import script_group
 from .commands.template_cmd import template_group
+from .utils.logging import get_logger, setup_logging
+
+logger = get_logger(__name__)
 
 
-class LensStudioCLI(click.MultiCommand):
+class LensStudioCLI(click.Group):
     """Custom MultiCommand that falls back to REPL when invoked without arguments."""
 
     _commands = {
@@ -109,15 +112,16 @@ def _start_repl(project_path=None):
             from .core.project import load_project
             data = load_project(project_path)
             session.set_project(data["project"]["name"], project_path)
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.debug("Failed to load project on REPL start: %s", exc)
 
     session.run()
 
 
 def main():
     """Entry point for the CLI."""
-    # If no arguments provided (just the command itself), enter REPL
+    setup_logging()
+    logger.info("CLI startup (argv=%s)", sys.argv[1:])
     cli(obj={})
 
 

@@ -3,7 +3,7 @@
 import click
 
 from ..core import template as tmpl_core
-from ..utils.formatter import success, error, render_table, render_detail
+from ..utils.formatter import error, render_detail, render_table, success
 
 
 @click.group("template")

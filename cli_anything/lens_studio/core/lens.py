@@ -6,29 +6,32 @@ and launching previews via the Lens Studio backend.
 
 import json
 import os
-import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from ..utils.backend import get_backend
+from ..utils.logging import get_logger
+
+logger = get_logger(__name__)
 
 
 def _timestamp() -> str:
-    return datetime.utcnow().isoformat() + "Z"
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 # ---------------------------------------------------------------------------
 # Validation
 # ---------------------------------------------------------------------------
 
-def validate_project(project_data: Dict) -> Dict[str, Any]:
+def validate_project(project_data: dict) -> dict[str, Any]:
     """Validate a project for lens submission readiness."""
+    logger.info("Validating project '%s'", project_data.get("name", "unknown"))
     errors = []
     warnings = []
 
     scene_objects = project_data.get("sceneObjects", [])
-    settings = project_data.get("settings", {})
+    project_data.get("settings", {})
 
     # Check required fields
     if not project_data.get("name"):
@@ -73,11 +76,11 @@ def _has_component_type(scene_objects: list, comp_type: str) -> bool:
     return False
 
 
-def _count_objects(project_data: Dict) -> int:
+def _count_objects(project_data: dict) -> int:
     return len(project_data.get("sceneObjects", []))
 
 
-def _count_components(project_data: Dict) -> int:
+def _count_components(project_data: dict) -> int:
     count = 0
     for obj in project_data.get("sceneObjects", []):
         count += len(obj.get("components", []))
@@ -92,8 +95,9 @@ def build_lens(
     project_path: str,
     output_path: str,
     target: str = "snapchat",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Build a lens from a project file using Lens Studio backend."""
+    logger.info("Building lens from %s -> %s (target=%s)", project_path, output_path, target)
     backend = get_backend()
 
     if not backend.available:
@@ -123,13 +127,13 @@ def _build_lens_bundle(
     project_path: str,
     output_path: str,
     target: str,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Build a lens bundle without Lens Studio (packages project as JSON bundle)."""
     from .project import load_project
 
     try:
         project_data = load_project(project_path)
-        project_dir = str(Path(project_path).parent)
+        str(Path(project_path).parent)
 
         bundle = {
             "format": "lens-bundle",
@@ -172,11 +176,13 @@ def _build_lens_bundle(
 def preview_lens(
     project_path: str,
     device: str = "simulator",
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Launch lens preview."""
+    logger.info("Launching preview for %s on %s", project_path, device)
     backend = get_backend()
 
     if not backend.available:
+        logger.error("Lens Studio not found — cannot launch preview")
         return {
             "success": False,
             "error": "Lens Studio not found. Cannot launch preview.",
@@ -197,7 +203,7 @@ def preview_lens(
         }
 
 
-def open_in_lens_studio(project_path: str) -> Dict[str, Any]:
+def open_in_lens_studio(project_path: str) -> dict[str, Any]:
     """Open project in Lens Studio GUI."""
     backend = get_backend()
 
@@ -221,7 +227,7 @@ def open_in_lens_studio(project_path: str) -> Dict[str, Any]:
         }
 
 
-def get_backend_info() -> Dict[str, Any]:
+def get_backend_info() -> dict[str, Any]:
     """Get information about the Lens Studio backend."""
     backend = get_backend()
     info = {

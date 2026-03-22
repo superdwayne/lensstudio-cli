@@ -8,8 +8,9 @@ All functions take the project data dict (or its sceneObjects list) as first arg
 
 import copy
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Optional
 
+from ..utils.validation import validate_object_name
 from .project import _default_transform, _vec3
 
 
@@ -21,12 +22,12 @@ def _new_uuid() -> str:
 # Accessors — work on project_data["sceneObjects"] (a flat list)
 # ---------------------------------------------------------------------------
 
-def _objects(project_data: Dict) -> List[Dict]:
+def _objects(project_data: dict) -> list[dict]:
     """Get the sceneObjects list from project data."""
     return project_data.setdefault("sceneObjects", [])
 
 
-def find_object(project_data: Dict, obj_id: str) -> Optional[Dict]:
+def find_object(project_data: dict, obj_id: str) -> Optional[dict]:
     """Find a scene object by ID."""
     for obj in _objects(project_data):
         if obj.get("id") == obj_id:
@@ -34,7 +35,7 @@ def find_object(project_data: Dict, obj_id: str) -> Optional[Dict]:
     return None
 
 
-def find_object_by_name(project_data: Dict, name: str) -> Optional[Dict]:
+def find_object_by_name(project_data: dict, name: str) -> Optional[dict]:
     """Find the first scene object matching name."""
     for obj in _objects(project_data):
         if obj.get("name") == name:
@@ -42,12 +43,12 @@ def find_object_by_name(project_data: Dict, name: str) -> Optional[Dict]:
     return None
 
 
-def get_children(project_data: Dict, parent_id: str) -> List[Dict]:
+def get_children(project_data: dict, parent_id: str) -> list[dict]:
     """Get direct children of an object."""
     return [o for o in _objects(project_data) if o.get("parentId") == parent_id]
 
 
-def get_descendants(project_data: Dict, obj_id: str) -> List[Dict]:
+def get_descendants(project_data: dict, obj_id: str) -> list[dict]:
     """Get all descendants of an object (recursive)."""
     children = get_children(project_data, obj_id)
     result = list(children)
@@ -56,7 +57,7 @@ def get_descendants(project_data: Dict, obj_id: str) -> List[Dict]:
     return result
 
 
-def get_roots(project_data: Dict) -> List[Dict]:
+def get_roots(project_data: dict) -> list[dict]:
     """Get top-level objects (no parentId)."""
     return [o for o in _objects(project_data) if not o.get("parentId")]
 
@@ -65,7 +66,7 @@ def get_roots(project_data: Dict) -> List[Dict]:
 # Display helpers
 # ---------------------------------------------------------------------------
 
-def flatten_scene(project_data: Dict) -> List[Dict]:
+def flatten_scene(project_data: dict) -> list[dict]:
     """Flatten the scene into a display list with depth info."""
     items = []
     roots = get_roots(project_data)
@@ -74,7 +75,7 @@ def flatten_scene(project_data: Dict) -> List[Dict]:
     return items
 
 
-def _flatten_recursive(project_data: Dict, obj: Dict, depth: int, items: List):
+def _flatten_recursive(project_data: dict, obj: dict, depth: int, items: list):
     items.append({
         "id": obj.get("id", ""),
         "name": obj.get("name", ""),
@@ -87,13 +88,13 @@ def _flatten_recursive(project_data: Dict, obj: Dict, depth: int, items: List):
         _flatten_recursive(project_data, child, depth + 1, items)
 
 
-def scene_to_tree(project_data: Dict) -> List[Dict]:
+def scene_to_tree(project_data: dict) -> list[dict]:
     """Convert flat scene to nested tree structure for display."""
     roots = get_roots(project_data)
     return [_build_tree_node(project_data, r) for r in roots]
 
 
-def _build_tree_node(project_data: Dict, obj: Dict) -> Dict:
+def _build_tree_node(project_data: dict, obj: dict) -> dict:
     node = {
         "name": obj.get("name", "unnamed"),
         "id": obj.get("id", ""),
@@ -112,13 +113,14 @@ def _build_tree_node(project_data: Dict, obj: Dict) -> Dict:
 # ---------------------------------------------------------------------------
 
 def add_object(
-    project_data: Dict,
+    project_data: dict,
     name: str,
     parent_id: Optional[str] = None,
-    components: Optional[List[Dict]] = None,
-    transform: Optional[Dict] = None,
-) -> Dict:
+    components: Optional[list[dict]] = None,
+    transform: Optional[dict] = None,
+) -> dict:
     """Add a new SceneObject to the scene."""
+    name = validate_object_name(name)
     if parent_id:
         parent = find_object(project_data, parent_id)
         if not parent:
@@ -137,7 +139,7 @@ def add_object(
     return new_obj
 
 
-def remove_object(project_data: Dict, obj_id: str) -> bool:
+def remove_object(project_data: dict, obj_id: str) -> bool:
     """Remove a scene object and all its descendants."""
     obj = find_object(project_data, obj_id)
     if not obj:
@@ -154,7 +156,7 @@ def remove_object(project_data: Dict, obj_id: str) -> bool:
     return True
 
 
-def rename_object(project_data: Dict, obj_id: str, new_name: str) -> Dict:
+def rename_object(project_data: dict, obj_id: str, new_name: str) -> dict:
     """Rename a scene object."""
     obj = find_object(project_data, obj_id)
     if not obj:
@@ -164,12 +166,12 @@ def rename_object(project_data: Dict, obj_id: str, new_name: str) -> Dict:
 
 
 def set_transform(
-    project_data: Dict,
+    project_data: dict,
     obj_id: str,
-    position: Optional[List[float]] = None,
-    rotation: Optional[List[float]] = None,
-    scale: Optional[List[float]] = None,
-) -> Dict:
+    position: Optional[list[float]] = None,
+    rotation: Optional[list[float]] = None,
+    scale: Optional[list[float]] = None,
+) -> dict:
     """Set transform properties on a scene object using [x,y,z] input."""
     obj = find_object(project_data, obj_id)
     if not obj:
@@ -187,7 +189,7 @@ def set_transform(
     return obj
 
 
-def set_enabled(project_data: Dict, obj_id: str, enabled: bool) -> Dict:
+def set_enabled(project_data: dict, obj_id: str, enabled: bool) -> dict:
     """Enable or disable a scene object."""
     obj = find_object(project_data, obj_id)
     if not obj:
@@ -196,7 +198,7 @@ def set_enabled(project_data: Dict, obj_id: str, enabled: bool) -> Dict:
     return obj
 
 
-def reparent(project_data: Dict, obj_id: str, new_parent_id: Optional[str]) -> Dict:
+def reparent(project_data: dict, obj_id: str, new_parent_id: Optional[str]) -> dict:
     """Move a scene object to a new parent (None = make root)."""
     obj = find_object(project_data, obj_id)
     if not obj:
@@ -216,7 +218,7 @@ def reparent(project_data: Dict, obj_id: str, new_parent_id: Optional[str]) -> D
     return obj
 
 
-def duplicate_object(project_data: Dict, obj_id: str) -> Dict:
+def duplicate_object(project_data: dict, obj_id: str) -> dict:
     """Duplicate a scene object (deep copy with new IDs)."""
     obj = find_object(project_data, obj_id)
     if not obj:
@@ -236,7 +238,7 @@ def duplicate_object(project_data: Dict, obj_id: str) -> Dict:
     # Also duplicate descendants
     for desc in get_descendants(project_data, obj_id):
         desc_clone = copy.deepcopy(desc)
-        old_id = desc_clone["id"]
+        desc_clone["id"]
         desc_clone["id"] = _new_uuid()
         # Update parentId if it pointed to the original object
         if desc_clone.get("parentId") == obj_id:
