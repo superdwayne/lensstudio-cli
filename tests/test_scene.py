@@ -9,7 +9,6 @@ from cli_anything.lens_studio.core.scene import (
     find_object_by_name,
     flatten_scene,
     get_children,
-    get_roots,
     remove_object,
     rename_object,
     reparent,

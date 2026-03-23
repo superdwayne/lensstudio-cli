@@ -2,6 +2,7 @@
 
 import json
 import sys
+import time
 from typing import Any, Optional
 
 from rich.console import Console
@@ -11,6 +12,41 @@ from rich.tree import Tree
 
 console = Console()
 error_console = Console(stderr=True)
+
+# ---------------------------------------------------------------------------
+# Real-time action feed
+# ---------------------------------------------------------------------------
+
+_verbose = False
+
+
+def set_verbose(enabled: bool = True):
+    """Enable or disable real-time action logging."""
+    global _verbose
+    _verbose = enabled
+
+
+def is_verbose() -> bool:
+    return _verbose
+
+
+def action(label: str, detail: str = "", json_mode: bool = False):
+    """Log a real-time action to stderr so the user sees it immediately.
+
+    Shows as a dim timestamped line in human mode; emitted as JSON event
+    in JSON mode.  Only printed when verbose mode is active.
+    """
+    if not _verbose:
+        return
+    ts = time.strftime("%H:%M:%S")
+    if json_mode:
+        import json as _json
+        print(_json.dumps({"event": "action", "time": ts, "label": label, "detail": detail}), file=sys.stderr)
+    else:
+        msg = f"[dim]{ts}[/dim] [cyan]▶[/cyan] {label}"
+        if detail:
+            msg += f"  [dim]{detail}[/dim]"
+        error_console.print(msg)
 
 
 def success(message: str, json_mode: bool = False, data: Optional[dict] = None):

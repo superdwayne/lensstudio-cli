@@ -153,6 +153,23 @@ def get_projects_dir() -> Path:
     return Path(DEFAULT_PROJECTS_DIR)
 
 
+# ---------------------------------------------------------------------------
+# Bridge IPC directories
+# ---------------------------------------------------------------------------
+
+BRIDGE_DIR = os.path.expanduser("~/.ls-cli/bridge")
+BRIDGE_COMMANDS_DIR = os.path.join(BRIDGE_DIR, "commands")
+BRIDGE_RESPONSES_DIR = os.path.join(BRIDGE_DIR, "responses")
+
+
+def get_bridge_dir() -> Path:
+    """Get the bridge IPC directory path."""
+    env_dir = os.environ.get("LS_BRIDGE_DIR")
+    if env_dir:
+        return Path(env_dir)
+    return Path(BRIDGE_DIR)
+
+
 def ensure_dir(path: Path) -> Path:
     """Ensure a directory exists, creating it if necessary."""
     path.mkdir(parents=True, exist_ok=True)

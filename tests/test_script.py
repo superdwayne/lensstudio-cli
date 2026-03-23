@@ -1,10 +1,10 @@
 """Tests for script management."""
 
-import os
 from pathlib import Path
 
 import pytest
 
+from cli_anything.lens_studio.core.scene import add_object
 from cli_anything.lens_studio.core.script import (
     SCRIPT_TEMPLATES,
     attach_script,
@@ -17,7 +17,6 @@ from cli_anything.lens_studio.core.script import (
     remove_script,
     write_script_content,
 )
-from cli_anything.lens_studio.core.scene import add_object
 
 
 class TestCreateScript:

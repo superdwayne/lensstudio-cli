@@ -2,7 +2,6 @@
 
 import json
 import os
-import tempfile
 
 import pytest
 from click.testing import CliRunner
@@ -158,8 +157,8 @@ class TestLensCommands:
         assert "valid" in data
 
     def test_lens_build(self, project_with_runner, monkeypatch):
-        from cli_anything.lens_studio.utils.backend import LensStudioBackend
         from cli_anything.lens_studio.core import lens as lens_mod
+        from cli_anything.lens_studio.utils.backend import LensStudioBackend
 
         # Force the backend to be unavailable so the fallback bundle path is used
         fake_backend = LensStudioBackend(executable="/nonexistent")

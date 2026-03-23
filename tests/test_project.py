@@ -1,6 +1,5 @@
 """Tests for project management."""
 
-import json
 import os
 from pathlib import Path
 

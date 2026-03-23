@@ -1,0 +1,5 @@
+{
+  "name": "LS-CLI Bridge",
+  "main": "bridge.js",
+  "permissions": ["filesystem"]
+}

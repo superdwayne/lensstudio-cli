@@ -1,7 +1,5 @@
 """Shared test fixtures for Lens Studio CLI tests."""
 
-import json
-import os
 import tempfile
 from pathlib import Path
 

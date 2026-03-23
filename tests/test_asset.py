@@ -1,6 +1,5 @@
 """Tests for asset management."""
 
-import os
 from pathlib import Path
 
 import pytest
@@ -14,7 +13,6 @@ from cli_anything.lens_studio.core.asset import (
     remove_asset,
     update_asset,
 )
-from cli_anything.lens_studio.core.project import save_project
 
 
 class TestDetectAssetType:

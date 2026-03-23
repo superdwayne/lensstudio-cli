@@ -2,6 +2,7 @@
 
 import pytest
 
+from cli_anything.lens_studio.core.component import add_component
 from cli_anything.lens_studio.core.material import (
     assign_material,
     create_material,
@@ -12,7 +13,6 @@ from cli_anything.lens_studio.core.material import (
     update_material,
 )
 from cli_anything.lens_studio.core.scene import add_object
-from cli_anything.lens_studio.core.component import add_component
 
 
 class TestCreateMaterial:

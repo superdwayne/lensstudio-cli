@@ -2,17 +2,14 @@
 
 import json
 import os
-from pathlib import Path
-
-import pytest
 
 from cli_anything.lens_studio.core.lens import (
-    validate_project,
     _build_lens_bundle,
     _count_components,
     _count_objects,
     _has_component_type,
     get_backend_info,
+    validate_project,
 )
 
 

@@ -39,6 +39,18 @@ dev = [
     "ruff>=0.4.0",
     "pytest-cov>=4.0",
 ]
+gui = [
+    "pyobjc-core>=10.0; sys_platform == 'darwin'",
+    "pyobjc-framework-Cocoa>=10.0; sys_platform == 'darwin'",
+    "pyobjc-framework-ApplicationServices>=10.0; sys_platform == 'darwin'",
+    "pyobjc-framework-Quartz>=10.0; sys_platform == 'darwin'",
+]
+agent = [
+    "anthropic>=0.40.0",
+]
+all = [
+    "cli-anything-lens-studio[gui,agent]",
+]
 
 [project.scripts]
 cli-anything-lens-studio = "cli_anything.lens_studio.cli:main"
@@ -49,7 +61,10 @@ Homepage = "https://github.com/HKUDS/CLI-Anything"
 Repository = "https://github.com/HKUDS/CLI-Anything"
 
 [tool.setuptools.packages.find]
-include = ["cli_anything*"]
+include = ["cli_anything*", "ls_bridge_plugin*"]
+
+[tool.setuptools.package-data]
+ls_bridge_plugin = ["*.js", "*.json", "commands/*.js"]
 
 [tool.ruff]
 target-version = "py39"
@@ -63,6 +78,10 @@ select = ["E", "F", "W", "I", "N", "UP", "S", "B", "A", "C4", "PT"]
 "cli_anything/lens_studio/core/script.py" = ["E501"]
 # REPL banner art exceeds line length
 "cli_anything/lens_studio/utils/repl_skin.py" = ["E501"]
+# GUI module uses subprocess for macOS automation and PyObjC imports
+"cli_anything/lens_studio/gui/*.py" = ["S603", "S607", "N806"]
+# Agent prompts contain long strings
+"cli_anything/lens_studio/agent/prompts.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.9"
@@ -80,6 +99,15 @@ module = [
     "cli_anything.lens_studio.core.template",
 ]
 disable_error_code = ["arg-type", "attr-defined", "var-annotated", "assignment"]
+
+[[tool.mypy.overrides]]
+module = [
+    "ApplicationServices",
+    "Cocoa",
+    "Quartz",
+    "anthropic",
+]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

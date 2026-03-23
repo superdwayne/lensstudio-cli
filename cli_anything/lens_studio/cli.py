@@ -11,6 +11,8 @@ import click
 
 from . import __version__
 from .commands.asset_cmd import asset_group
+from .commands.auto_cmd import auto_group
+from .commands.bridge_cmd import bridge_group
 from .commands.component_cmd import component_group
 from .commands.lens_cmd import lens_group
 from .commands.material_cmd import material_group
@@ -35,6 +37,8 @@ class LensStudioCLI(click.Group):
         "component": component_group,
         "lens": lens_group,
         "template": template_group,
+        "bridge": bridge_group,
+        "auto": auto_group,
     }
 
     def list_commands(self, ctx):
@@ -47,9 +51,10 @@ class LensStudioCLI(click.Group):
 @click.command(cls=LensStudioCLI, invoke_without_command=True)
 @click.option("--project", "-p", "project_path", default=None, help="Project file path (.lsproj)")
 @click.option("--json", "json_mode", is_flag=True, help="Output JSON for all commands")
+@click.option("--verbose", "-v", is_flag=True, help="Show real-time action feed")
 @click.option("--version", is_flag=True, help="Show version")
 @click.pass_context
-def cli(ctx, project_path, json_mode, version):
+def cli(ctx, project_path, json_mode, verbose, version):
     """cli-anything-lens-studio — Agent-native CLI for Snap Lens Studio.
 
     Run without arguments to enter interactive REPL mode.
@@ -66,8 +71,8 @@ def cli(ctx, project_path, json_mode, version):
       ls-cli --project MyLens/MyLens.lsproj scene add -n "3D Object"
 
       \b
-      # Build a lens
-      ls-cli --project MyLens/MyLens.lsproj lens build -o output.lens
+      # Build a lens (verbose — see every action in real-time)
+      ls-cli -v --project MyLens/MyLens.lsproj lens build -o output.lens
 
       \b
       # Interactive mode
@@ -76,6 +81,17 @@ def cli(ctx, project_path, json_mode, version):
     ctx.ensure_object(dict)
     ctx.obj["project_path"] = project_path
     ctx.obj["json_mode"] = json_mode
+    ctx.obj["verbose"] = verbose
+
+    if verbose:
+        from .utils.formatter import action, set_verbose
+        set_verbose(True)
+        setup_logging(level=10)  # DEBUG when verbose
+        # Emit action feed for the current command invocation
+        if ctx.invoked_subcommand:
+            # Show full command without the verbose flag itself
+            raw_args = [a for a in sys.argv[1:] if a not in ("-v", "--verbose")]
+            action("ls-cli", " ".join(raw_args))
 
     if version:
         if json_mode:

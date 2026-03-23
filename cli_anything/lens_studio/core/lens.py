@@ -96,31 +96,47 @@ def build_lens(
     output_path: str,
     target: str = "snapchat",
 ) -> dict[str, Any]:
-    """Build a lens from a project file using Lens Studio backend."""
+    """Build a lens from a project file.
+
+    Fallback chain:
+      1. Lens Studio backend (subprocess)
+      2. GUI automation (macOS Accessibility API)
+      3. JSON bundle (file-based packaging)
+    """
     logger.info("Building lens from %s -> %s (target=%s)", project_path, output_path, target)
     backend = get_backend()
 
-    if not backend.available:
-        # Fallback: package project data as a lens bundle (JSON-based)
-        return _build_lens_bundle(project_path, output_path, target)
+    # Tier 1: Try native backend subprocess
+    if backend.available:
+        try:
+            result = backend.build_lens(project_path, output_path, target)
+            if result.returncode == 0:
+                output_size = os.path.getsize(output_path) if os.path.exists(output_path) else 0
+                return {
+                    "success": True,
+                    "output": output_path,
+                    "size": output_size,
+                    "target": target,
+                    "built": _timestamp(),
+                    "method": "backend",
+                }
+        except Exception:
+            logger.debug("Backend build failed, trying GUI fallback")
 
+    # Tier 2: Try GUI automation (macOS only)
     try:
-        result = backend.build_lens(project_path, output_path, target)
-        if result.returncode == 0:
-            output_size = os.path.getsize(output_path) if os.path.exists(output_path) else 0
-            return {
-                "success": True,
-                "output": output_path,
-                "size": output_size,
-                "target": target,
-                "built": _timestamp(),
-            }
-        else:
-            # Backend failed — fall back to bundle
-            return _build_lens_bundle(project_path, output_path, target)
+        from ..gui.actions import build_lens_gui, get_gui_status
+
+        gui_status = get_gui_status()
+        if gui_status.get("lens_studio_running"):
+            gui_result = build_lens_gui(output_path=output_path, target=target)
+            if gui_result.get("success"):
+                return gui_result
     except Exception:
-        # Backend unavailable or errored — fall back to bundle
-        return _build_lens_bundle(project_path, output_path, target)
+        logger.debug("GUI build not available, falling back to bundle")
+
+    # Tier 3: Package as JSON bundle
+    return _build_lens_bundle(project_path, output_path, target)
 
 
 def _build_lens_bundle(

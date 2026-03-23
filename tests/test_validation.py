@@ -1,14 +1,13 @@
 """Tests for cli_anything.lens_studio.utils.validation module."""
 
-import pytest
-from pathlib import Path
 
+import pytest
+
+from cli_anything.lens_studio.exceptions import InvalidProjectNameError, ValidationError
 from cli_anything.lens_studio.utils.validation import (
     sanitize_project_name,
     validate_project_path,
 )
-from cli_anything.lens_studio.exceptions import InvalidProjectNameError, ValidationError
-
 
 # ---------------------------------------------------------------------------
 # sanitize_project_name
