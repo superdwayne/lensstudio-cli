@@ -10,7 +10,7 @@ markdown-it-py==4.0.0
 MarkupSafe==3.0.3
 mdurl==0.1.2
 prompt_toolkit==3.0.52
-Pygments==2.19.2
+Pygments==2.20.0
 PyYAML==6.0.3
 rich==14.3.3
 wcwidth==0.6.0
